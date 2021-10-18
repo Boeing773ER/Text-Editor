@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="image">
+    <file>icons8-add-file-96.png</file>
+    <file>icons8-open-file-folder-96.png</file>
+    <file>icons8-replace-96.png</file>
+    <file>icons8-save-96.png</file>
+    <file>icons8-search-96.png</file>
+  </qresource>
+</RCC>
