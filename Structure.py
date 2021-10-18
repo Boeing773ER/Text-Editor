@@ -212,7 +212,7 @@ def kmp_matching(target, pattern):
         return -1
     else:
         return pos
-
+#
 
 def kmp_replace(target, old_str, new_str):
     text_pos = kmp_matching(target, old_str)
