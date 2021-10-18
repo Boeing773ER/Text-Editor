@@ -120,6 +120,7 @@ class Text_Editor(QMainWindow):
         m_statistic.triggered.connect(self.statistic_pressed)
         # for test
 
+    # BASIC FUNCTION: NEW, OPEN, SAVE
     # !!!!!!!!!!!!!!!!need to add scene when file has been saved
     def new_pressed(self):
         print("inside func new_pressed")
@@ -150,6 +151,15 @@ class Text_Editor(QMainWindow):
             print("open fail")
             self.statusbar.showMessage("Open Failed")
 
+    # file path stored in self.path_list
+    def open_mul_file(self):
+        print("inside func open_mul_file")
+        file_path = QFileDialog.getOpenFileNames(self, caption="Open Mul Files", filter="*.txt")
+        # getOpenFileNames return in format ([path],"*.txt")
+        self.path_list = file_path[0]
+        print(type(self.path_list), "\n", self.path_list)
+        return self.path_list
+
     # TODO: check func save_pressed
     def save_pressed(self):
         print("inside func save_pressed")
@@ -167,7 +177,7 @@ class Text_Editor(QMainWindow):
     def save_new_file(self):
         print("inside func save_new_file")
         filename_save = QFileDialog.getSaveFileName(self, caption="Save New File", filter="*.txt")
-        print(filename_save.__dir__())
+        print(filename_save)
         if filename_save != ('', ''):
             print("Save_path:"+filename_save)
             file_a = open(filename_save[0], mode='w+')
@@ -191,6 +201,46 @@ class Text_Editor(QMainWindow):
         file_a.close()
         self.statusbar.showMessage("Saved")
 
+    # Handle Exception: content unsaved, check if saved etc
+    def content_unsaved(self):
+        print("inside func content_unsaved")
+        unsaved = QMessageBox.information(self, "Save?", "Current content unsaved. Do you wish to save it?",
+                                          QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Yes)
+        if unsaved == QMessageBox.Yes:
+            print("save unsaved file")
+            self.save_pressed()
+            print("file saved, closing plainTextEdit")
+            self.plainTextEdit.close()
+            print(self.centralWidget() is None)
+            print("plaintextedit closed")
+        elif unsaved == QMessageBox.No:
+            print("discard unsaved file")
+            self.plainTextEdit.close()
+
+    # TODO: check func content_empty
+    def content_empty(self):
+        print("inside func content_empty")
+        QMessageBox.warning(self, "Empty", "Content Empty!", QMessageBox.Ok, QMessageBox.Ok)
+
+    # TODO: check func check_if_saved
+    def check_if_saved(self):
+        print("inside func check_if_saved")
+        if self.centralWidget() is None:
+            return
+        if not self.openfile:
+            # No file has been opened/Not initialized
+            if self.centralWidget() is not None:
+                # Save New File
+                self.content_unsaved()
+        else:
+            # openfile exist
+            file_a = open(self.openfile, mode='r')
+            str_f = file_a.read()
+            str_e = self.plainTextEdit.toPlainText()
+            if str_e != str_f:
+                self.content_unsaved()
+
+    # FUNCTION: FIND & REPLACE
     # TODO: bug in highlight
     def find_pressed(self):
         print("inside func find_pressed")
@@ -257,6 +307,9 @@ class Text_Editor(QMainWindow):
             cancel_button.clicked.connect(dialog.close())
             dialog.exec()
 
+    def target_not_find(self):
+        print("inside func target_not_find")
+
     # remove high-light
     def rem_hl_pressed(self):
         print("inside func rem_hl_pressed")
@@ -270,23 +323,24 @@ class Text_Editor(QMainWindow):
         highlight_cursor.mergeCharFormat(color_format)
         cursor.endEditBlock()
 
+    # FUNCTION: ENCODE & DECODE
     def encode_pressed(self):
         print("inside func encode_pressed")
         if self.centralWidget() is not None:
             # gen tree
             edit_str = self.plainTextEdit.toPlainText()
-            dict_a = dict()
-            count_element(edit_str, dict_a)  # dict:['symbol':count]
-            sorted_key = sorted_dict(dict_a, dict_a.keys(), reverse=True)
-            self.huff_a = HuffmanTree(dict_a, len(dict_a))  # generate HuffTree using dict
+            dict_count = dict()
+            count_element(edit_str, dict_count)  # dict:['symbol':count]
+            sorted_key = sorted_dict(dict_count, dict_count.keys(), reverse=True)
+            self.huff_a = HuffmanTree(dict_count, len(dict_count))  # generate HuffTree using dict
             dict_code = gen_huff_tree(self.huff_a)
             webbrowser.open(r".\tree_base.html")
             # gen huff_dict
-            file_a = open("huff_dict.txt", mode='w+')
+            """file_a = open("huff_dict.txt", mode='w+')
             dict_ref = dict_code.__str__()
             file_a.write(dict_ref)
             file_a.close()
-            webbrowser.open(r".\huff_dict.txt")
+            webbrowser.open(r".\huff_dict.txt")"""
             # gen binary
             str_a = ""
             for i in range(len(edit_str)):
@@ -296,8 +350,8 @@ class Text_Editor(QMainWindow):
             file_b.write(str_a)
             file_b.close()
             webbrowser.open(r".\binary.txt")
-            # open table for character count
-            self.gen_sta_table(dict_a, sorted_key)
+            # TODO: creat a function for huff code
+            self.huff_code_table(dict_count, dict_code, sorted_key)
         else:
             self.content_empty()
 
@@ -324,6 +378,31 @@ class Text_Editor(QMainWindow):
                     # print("complete assignment")
             print(str_a)
 
+    def huff_code_table(self, dict_count, dict_code, sorted_key):
+        print("inside func huff_code_table")
+        # dict_code: Huffman code
+        # dic_count: Word Count
+        # sorted_kay: sequence for words
+        dialog = QDialog()
+        print("sorted_key:", len(sorted_key))
+        print("dict_code:", len(dict_code))
+        sta_table = QTableWidget(len(dict_code), 3, dialog)
+        print("huff_code_table creat")
+        dialog.setWindowTitle("Huffman Tree")
+        header = ["Word", "Count", "Huffman Code"]
+        sta_table.setHorizontalHeaderLabels(header)
+        sta_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        for i in range(len(dict_code)):
+            sta_table.setItem(i, 0, QTableWidgetItem(sorted_key[i]))
+            sta_table.setItem(i, 1, QTableWidgetItem(str(dict_count[sorted_key[i]])))
+            sta_table.setItem(i, 2, QTableWidgetItem(str(dict_code[sorted_key[i]])))
+        print("table init complete")
+        sta_table.show()
+        sta_table.resize(300, 600)
+        print("table shown")
+        dialog.exec()
+
+    # ADV FUNCTION
     # TODO: complete func mul_search_pressed
     def mul_search_pressed(self):
         print("inside func mul_search_pressed")
@@ -337,6 +416,7 @@ class Text_Editor(QMainWindow):
             print("mul_search open fail")
         else:
             inv_index = self.inverted_index()
+            print(inv_index)
             find_input = QInputDialog()
             find_input.setWindowTitle("Find")
             find_input.setLabelText("Find:")
@@ -373,68 +453,18 @@ class Text_Editor(QMainWindow):
                 print(sorted_key[i], dict_b[sorted_key[i]])
             self.gen_sta_table(dict_b, sorted_key)
 
-    def content_unsaved(self):
-        print("inside func content_unsaved")
-        unsaved = QMessageBox.information(self, "Save?", "Current content unsaved. Do you wish to save it?",
-                                          QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Yes)
-        if unsaved == QMessageBox.Yes:
-            print("save unsaved file")
-            self.save_pressed()
-            print("file saved, closing plainTextEdit")
-            self.plainTextEdit.close()
-            print("plaintextedit closed")
-        elif unsaved == QMessageBox.No:
-            print("discard unsaved file")
-            self.plainTextEdit.close()
-
-    # TODO: check func content_empty
-    def content_empty(self):
-        print("inside func content_empty")
-        QMessageBox.warning(self, "Empty", "Content Empty!", QMessageBox.Ok, QMessageBox.Ok)
-
-    # TODO: check func check_if_saved
-    def check_if_saved(self):
-        print("inside func check_if_saved")
-        if self.centralWidget() is None:
-            return
-        if not self.openfile:
-            # No file has been opened/Not initialized
-            if self.centralWidget() is not None:
-                # Save New File
-                self.content_unsaved()
-        else:
-            # openfile exist
-            file_a = open(self.openfile, mode='r')
-            str_f = file_a.read()
-            str_e = self.plainTextEdit.toPlainText()
-            if str_e != str_f:
-                self.content_unsaved()
-
-    def target_not_find(self):
-        print("inside func target_not_find")
-
-    # file path stored in self.path_list
-    def open_mul_file(self):
-        print("inside func open_mul_file")
-        file_path = QFileDialog.getOpenFileNames(self, caption="Open Mul Files", filter="*.txt")
-        # getOpenFileNames return in format ([path],"*.txt")
-        self.path_list = file_path[0]
-        print(type(self.path_list), "\n", self.path_list)
-        return self.path_list
-
     # TODO: check func gen_sta_table
     def gen_sta_table(self, dict_b, sorted_key):
         print("inside func gen_sta_table")
         # dict_b: word count
         # sorted_kay: sequence for words
         dialog = QDialog()
-        sta_table = QTableWidget(len(dict_b), 2, dialog)
+        sta_table = QTableWidget(30, 2, dialog)
         print("sta_table creat")
         dialog.setWindowTitle("Statistic")
         header = ["Word", "Count"]
         sta_table.setHorizontalHeaderLabels(header)
-        sta_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        # sta_table.verticalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        sta_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         for i in range(30):
             sta_table.setItem(i, 0, QTableWidgetItem(sorted_key[i]))
             sta_table.setItem(i, 1, QTableWidgetItem(str(dict_b[sorted_key[i]])))
