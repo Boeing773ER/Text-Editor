@@ -34,6 +34,9 @@ class Text_Editor(QMainWindow):
         editor_font = self.plainTextEdit.font()
         editor_font.setPointSize(20)
         self.plainTextEdit.setFont(editor_font)
+        self.setCentralWidget(self.plainTextEdit)   # set it as central widget
+        self.plainTextEdit.close()      # close, make it invisible
+        self.plainTextEdit.textChanged.connect(lambda: self.text_changed())
 
         # menubar
         self.menubar = self.menuBar()
@@ -106,6 +109,43 @@ class Text_Editor(QMainWindow):
         self.statusbar = QStatusBar()
         self.statusbar.setObjectName("statusbar")
         self.setStatusBar(self.statusbar)
+        # init component
+        self.courser_pos = QLabel()
+        self.courser_pos.setMinimumWidth(200)
+        self.courser_pos.setAlignment(Qt.AlignCenter)
+        self.courser_pos.setText("Ln:1 \t Col:1")
+        self.sb_message = QLabel()
+        self.sb_message.setMinimumWidth(200)
+        self.sb_message.setAlignment(Qt.AlignCenter)
+        self.word_count = QLabel()
+        self.word_count.setMinimumWidth(100)
+        self.word_count.setAlignment(Qt.AlignCenter)
+        self.word_count.setText("0 Char")
+        self.statusbar.addPermanentWidget(self.sb_message)
+        self.statusbar.addPermanentWidget(self.courser_pos)
+        self.statusbar.addPermanentWidget(self.word_count)
+        """QLabel* label = new QLabel("TQSilence");
+
+    if( label != NULL )
+    {
+        statusLbl.setMinimumWidth(200);
+        statusLbl.setAlignment(Qt::AlignCenter);
+        statusLbl.setText("Ln: 1    Col: 1");
+
+        label->setMinimumWidth(200);
+        label->setAlignment(Qt::AlignCenter);
+
+        sb->addPermanentWidget(new QLabel());
+        sb->addPermanentWidget(&statusLbl);
+        sb->addPermanentWidget(label);
+    }
+    else
+    {
+        ret = false;
+    }
+
+    return ret;
+}"""
 
         # connect
         m_new.triggered.connect(self.new_pressed)
@@ -124,13 +164,15 @@ class Text_Editor(QMainWindow):
     # !!!!!!!!!!!!!!!!need to add scene when file has been saved
     def new_pressed(self):
         print("inside func new_pressed")
-        if self.centralWidget() is None:
-            # None exist, creat new file
+        if self.plainTextEdit.isHidden():
+            # plain_text_edit not visible, creat new file
             self.openfile = []
-            self.setCentralWidget(self.plainTextEdit)
+            # self.setCentralWidget(self.plainTextEdit)
+            self.plainTextEdit.show()
             self.statusbar.showMessage("New File")
         elif self.plainTextEdit.toPlainText() != '':
             self.check_if_saved()
+            self.plainTextEdit.show()
 
     # !!!!!!!!!!need to consider if the current file have been saved or  not
     def open_pressed(self):
@@ -144,8 +186,11 @@ class Text_Editor(QMainWindow):
             print("file opened")
             str_a = file_a.read()
             print("done reading")
-            if self.centralWidget() is None:
-                self.setCentralWidget(self.plainTextEdit)
+            """if self.centralWidget() is None:
+                self.setCentralWidget(self.plainTextEdit)"""
+            # if plain text edit not visible, show it
+            if self.plainTextEdit.isHidden():
+                self.plainTextEdit.show()
             self.plainTextEdit.setPlainText(str_a)
         else:
             print("open fail")
@@ -163,7 +208,8 @@ class Text_Editor(QMainWindow):
     # TODO: check func save_pressed
     def save_pressed(self):
         print("inside func save_pressed")
-        if self.centralWidget() is None:
+        # if self.centralWidget() is None:
+        if self.plainTextEdit.isHidden():
             self.content_empty()
         else:
             if not self.openfile:
@@ -179,7 +225,7 @@ class Text_Editor(QMainWindow):
         filename_save = QFileDialog.getSaveFileName(self, caption="Save New File", filter="*.txt")
         print(filename_save)
         if filename_save != ('', ''):
-            print("Save_path:"+filename_save)
+            print("Save_path:", filename_save)
             file_a = open(filename_save[0], mode='w+')
             edit_str = self.plainTextEdit.toPlainText()
             file_a.write(edit_str)
@@ -210,11 +256,14 @@ class Text_Editor(QMainWindow):
             print("save unsaved file")
             self.save_pressed()
             print("file saved, closing plainTextEdit")
+            self.plainTextEdit.clear()
             self.plainTextEdit.close()
-            print(self.centralWidget() is None)
-            print("plaintextedit closed")
+            print("hidden:", self.plainTextEdit.isHidden())
+            print("plaintextedit hidden")
         elif unsaved == QMessageBox.No:
             print("discard unsaved file")
+            self.statusbar.showMessage("Discard Unsaved File")
+            self.plainTextEdit.clear()
             self.plainTextEdit.close()
 
     # TODO: check func content_empty
@@ -225,11 +274,11 @@ class Text_Editor(QMainWindow):
     # TODO: check func check_if_saved
     def check_if_saved(self):
         print("inside func check_if_saved")
-        if self.centralWidget() is None:
+        if self.plainTextEdit.isHidden():
             return
         if not self.openfile:
             # No file has been opened/Not initialized
-            if self.centralWidget() is not None:
+            if self.plainTextEdit.isVisible():
                 # Save New File
                 self.content_unsaved()
         else:
@@ -244,7 +293,7 @@ class Text_Editor(QMainWindow):
     # TODO: bug in highlight
     def find_pressed(self):
         print("inside func find_pressed")
-        if self.centralWidget() is None:
+        if self.plainTextEdit.isHidden():
             self.content_empty()
         else:
             print("in find")
@@ -279,7 +328,7 @@ class Text_Editor(QMainWindow):
     # TODO: complete func replace_pressed, connect pushbutton
     def replace_pressed(self):
         print("inside func replace_pressed")
-        if self.centralWidget() is None:
+        if self.plainTextEdit.isHidden():
             self.content_empty()
         else:
             dialog = QDialog()
@@ -304,7 +353,7 @@ class Text_Editor(QMainWindow):
             dialog.setLayout(layout)
             # replace_button.customContextMenuRequested.connect(self.replace_process())
             # replace_button.click.connect(self.replace_process())
-            cancel_button.clicked.connect(dialog.close())
+            # cancel_button.clicked.connect(dialog.close())
             dialog.exec()
 
     def target_not_find(self):
@@ -326,7 +375,7 @@ class Text_Editor(QMainWindow):
     # FUNCTION: ENCODE & DECODE
     def encode_pressed(self):
         print("inside func encode_pressed")
-        if self.centralWidget() is not None:
+        if self.plainTextEdit.isVisible():
             # gen tree
             edit_str = self.plainTextEdit.toPlainText()
             dict_count = dict()
@@ -508,5 +557,9 @@ class Text_Editor(QMainWindow):
     def replace_process(self):
         print("inside func replace_process")
 
+    def text_changed(self):
+        print("in func text_changed")
+        self.word_count.setText(len(self.plainTextEdit.toPlainText()).__str__() + " Char")
+        # self.rem_hl_pressed()
 
 # TODO: 高级搜索用表达式求值
