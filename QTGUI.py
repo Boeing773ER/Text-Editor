@@ -161,7 +161,6 @@ class Text_Editor(QMainWindow):
         # for test
 
     # BASIC FUNCTION: NEW, OPEN, SAVE
-    # !!!!!!!!!!!!!!!!need to add scene when file has been saved
     def new_pressed(self):
         print("inside func new_pressed")
         if self.plainTextEdit.isHidden():
@@ -174,7 +173,6 @@ class Text_Editor(QMainWindow):
             self.check_if_saved()
             self.plainTextEdit.show()
 
-    # !!!!!!!!!!need to consider if the current file have been saved or  not
     def open_pressed(self):
         print("inside func open_pressed")
         self.check_if_saved()
@@ -205,7 +203,6 @@ class Text_Editor(QMainWindow):
         print(type(self.path_list), "\n", self.path_list)
         return self.path_list
 
-    # TODO: check func save_pressed
     def save_pressed(self):
         print("inside func save_pressed")
         # if self.centralWidget() is None:
@@ -219,7 +216,6 @@ class Text_Editor(QMainWindow):
                 # write it back to the original file
                 self.save_to_exist()
 
-    # TODO: debug save_new_file
     def save_new_file(self):
         print("inside func save_new_file")
         filename_save = QFileDialog.getSaveFileName(self, caption="Save New File", filter="*.txt")
@@ -266,12 +262,10 @@ class Text_Editor(QMainWindow):
             self.plainTextEdit.clear()
             self.plainTextEdit.close()
 
-    # TODO: check func content_empty
     def content_empty(self):
         print("inside func content_empty")
         QMessageBox.warning(self, "Empty", "Content Empty!", QMessageBox.Ok, QMessageBox.Ok)
 
-    # TODO: check func check_if_saved
     def check_if_saved(self):
         print("inside func check_if_saved")
         if self.plainTextEdit.isHidden():
@@ -353,7 +347,7 @@ class Text_Editor(QMainWindow):
             dialog.setLayout(layout)
             # replace_button.customContextMenuRequested.connect(self.replace_process())
             # replace_button.click.connect(self.replace_process())
-            # cancel_button.clicked.connect(dialog.close())
+            # cancel_button.clicked.connect()
             dialog.exec()
 
     def target_not_find(self):
@@ -373,6 +367,7 @@ class Text_Editor(QMainWindow):
         cursor.endEditBlock()
 
     # FUNCTION: ENCODE & DECODE
+    # TODO: output binary to QDialog
     def encode_pressed(self):
         print("inside func encode_pressed")
         if self.plainTextEdit.isVisible():
@@ -399,12 +394,11 @@ class Text_Editor(QMainWindow):
             file_b.write(str_a)
             file_b.close()
             webbrowser.open(r".\binary.txt")
-            # TODO: creat a function for huff code
             self.huff_code_table(dict_count, dict_code, sorted_key)
         else:
             self.content_empty()
 
-    # TODO: write decode
+    # TODO: output Decode to QDialog
     def decode_pressed(self):
         print("inside func decode_pressed")
         if self.binary_code == "":
@@ -455,11 +449,9 @@ class Text_Editor(QMainWindow):
     # TODO: complete func mul_search_pressed
     def mul_search_pressed(self):
         print("inside func mul_search_pressed")
+        # check if saved. Close it if saved
         self.check_if_saved()
-
-        # !!!!!!!!!!!INSERT A FUNCTION TO REMOVE CENTRAL WIDGET
-
-        inv_index = dict()
+        self.plainTextEdit.close()
         self.open_mul_file()
         if not self.path_list:
             print("mul_search open fail")
@@ -467,16 +459,40 @@ class Text_Editor(QMainWindow):
             inv_index = self.inverted_index()
             print(inv_index)
             find_input = QInputDialog()
-            find_input.setWindowTitle("Find")
+            find_input.setWindowTitle("Inverted Index Find")
             find_input.setLabelText("Find:")
             find_input.setInputMode(QInputDialog.TextInput)
             if find_input.exec() == QInputDialog.Accepted:
                 str_pattern = find_input.textValue()
-
+            str_pattern = str_pattern.lstrip()  # remove space on the left
+            temp_pos = 0
+            word_list = []
+            for i in range(len(str_pattern)):
+                if str_pattern[i] == ' ':
+                    word_list.append(str_pattern[temp_pos:i])
+                    temp_pos = i + 1
+            word_list.append(str_pattern[temp_pos:len(str_pattern)])    # add last word
+            print(word_list)
+            # not finished
+            result_list = []
+            if len(word_list) == 1:
+                # wrong
+                pos_list = inv_index[word_list[0]]  # pos_list:[[path, pos], [path, pos]]
+                for j in pos_list:
+                    result_list.append(self.locate_sentence(j))
+                # repetition in result_list
+                print(result_list)
+            else:
+                for i in word_list:
+                    pos_list = inv_index[i]  # pos_list:[[path, pos], [path, pos]]
+                    for j in pos_list:
+                        print(self.locate_sentence(j))
 
     def statistic_pressed(self):
         print("inside func statistic_pressed")
+        # check if saved. Close it if saved.
         self.check_if_saved()
+        self.plainTextEdit.close()
         dict_b = dict()
         self.open_mul_file()
         if not self.path_list:
@@ -484,7 +500,6 @@ class Text_Editor(QMainWindow):
         else:
             for path_a in self.path_list:
                 file_a = open(path_a, mode='r')
-                # print("path: ", path_a)
                 str_a = file_a.read()
                 str_a = str_a.lower()
                 # tokenize + filter
@@ -492,17 +507,14 @@ class Text_Editor(QMainWindow):
                 print("OG: ", filtered_words, "\n")
                 # stemming
                 stem_words = stemming(filtered_words)
-                # print("stem: ", stem_words, "\n")
                 # simple counting, result in dict_b
                 count_element(stem_words, dict_b)
-                # print("statistic: ", dict_b)
                 file_a.close()
             sorted_key = sorted_dict(dict_b, dict_b.keys(), reverse=True)
             for i in range(10):
                 print(sorted_key[i], dict_b[sorted_key[i]])
             self.gen_sta_table(dict_b, sorted_key)
 
-    # TODO: check func gen_sta_table
     def gen_sta_table(self, dict_b, sorted_key):
         print("inside func gen_sta_table")
         # dict_b: word count
@@ -562,4 +574,24 @@ class Text_Editor(QMainWindow):
         self.word_count.setText(len(self.plainTextEdit.toPlainText()).__str__() + " Char")
         # self.rem_hl_pressed()
 
+    def locate_sentence(self, list_a):
+        file_a = open(list_a[0], mode='r')
+        str_a = file_a.read()
+        w_pos = list_a[1]
+        s_pos = 0   # start pos
+        e_pos = 0   # end pos
+        for i in range(w_pos, len(str_a)):
+            if str_a[i] == '.' or str_a[i] == '!' or str_a[i] == '?' or str_a[i] == '>' or str_a[i] == '<':
+                e_pos = i
+                break
+        s_pos = w_pos
+        while s_pos >= 0:
+            if str_a[s_pos] == '.' or str_a[s_pos] == '!' or str_a[s_pos] == '?' or str_a[s_pos] == '>' \
+                    or str_a[s_pos] == '<':
+                print(s_pos, str_a[s_pos])
+                break
+            s_pos -= 1
+        return [list_a[0], s_pos, e_pos]
+
 # TODO: 高级搜索用表达式求值
+# TODO: TDF-ID
