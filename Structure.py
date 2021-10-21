@@ -241,15 +241,19 @@ def count_element(source, dict_a):
             dict_a[source[i]] = 1
 
 
+def tf_count(source, word_count, tfidf, file_num, word_num):
+
+    pass
+
 # redundant function
-def word_num(target):
+"""def word_num(target):
     temp_dict = dict()
     for i in range(len(target)):
         if target[i] in temp_dict:
             temp_dict[target[i]] += 1
         else:
             temp_dict[target[i]] = 1
-    return temp_dict
+    return temp_dict"""
 
 
 def sorted_dict(container, keys, reverse=False):

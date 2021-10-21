@@ -6,7 +6,7 @@ from nltk.stem import WordNetLemmatizer
 from nltk.tokenize.stanford import StanfordTokenizer
 from Structure import kmp_replace
 
-def token_filter(str_a):
+def token_filter(str_a, word_num):
     # initialize stop_words
     stop_words = stopwords.words('english')
     stop_words = stop_words + ['!', ',', '.', '?', '-s', '-ly', '</s>', 's', '\'s', 'the', '<br', '/>', '\'', '...']
@@ -14,13 +14,12 @@ def token_filter(str_a):
     # tokenize & remove stop_words
     lower = str_a.lower()
     lower = remove_punctuation(lower)
-    lower = kmp_replace(lower, "<br />", "")
+    lower = kmp_replace(lower, "<br />", "")    # remove the <br /> in text
     remove = str.maketrans('', '', string.punctuation)
     removed = lower.translate(remove)
-    print("removed:", removed)
     word_token = nltk.word_tokenize(removed)
     # word_token = [word.lower() for word in word_token if word.isalpha()]
-    print("token:", word_token)
+    word_num.append(len(word_token))
     return [word for word in word_token if word not in stop_words]
 
 

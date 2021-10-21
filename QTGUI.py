@@ -5,7 +5,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QAction, QStatusBar, QPlainTextEdit
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon, QTextDocument, QTextCursor, QTextCharFormat
+from PyQt5.QtGui import QIcon, QTextDocument, QTextCursor, QTextCharFormat, QFont
 from TreeVisual import gen_huff_tree
 import webbrowser
 from Structure import *
@@ -367,7 +367,6 @@ class Text_Editor(QMainWindow):
         cursor.endEditBlock()
 
     # FUNCTION: ENCODE & DECODE
-    # TODO: output binary to QDialog
     def encode_pressed(self):
         print("inside func encode_pressed")
         if self.plainTextEdit.isVisible():
@@ -390,15 +389,14 @@ class Text_Editor(QMainWindow):
             for i in range(len(edit_str)):
                 str_a += dict_code[edit_str[i]]
             self.binary_code = str_a
-            file_b = open("binary.txt", mode='w+')
+            """file_b = open("binary.txt", mode='w+')
             file_b.write(str_a)
             file_b.close()
-            webbrowser.open(r".\binary.txt")
-            self.huff_code_table(dict_count, dict_code, sorted_key)
+            webbrowser.open(r".\binary.txt")"""
+            self.huff_code_present(dict_count, dict_code, sorted_key, self.binary_code)
         else:
             self.content_empty()
 
-    # TODO: output Decode to QDialog
     def decode_pressed(self):
         print("inside func decode_pressed")
         if self.binary_code == "":
@@ -419,17 +417,39 @@ class Text_Editor(QMainWindow):
                     # print(str_a)
                     temp_root = self.huff_a.root
                     # print("complete assignment")
-            print(str_a)
+            decode_pre = QDialog()
+            s_layout = QVBoxLayout()
+            prompt_text = QLabel("Decode Result:")
+            prompt_text.setFont(QFont("Roman times", 17, QFont.Bold))
+            s_layout.addWidget(prompt_text)
+            print("prompt_text init")
+            decode_text = QPlainTextEdit(str_a)
+            s_layout.addWidget(decode_text)
+            decode_text.setReadOnly(True)
+            decode_text.resize(400, 300)
+            text_font = decode_text.font()
+            text_font.setPointSize(15)
+            decode_text.setFont(text_font)
+            decode_pre.setLayout(s_layout)
+            decode_pre.resize(400, 300)
+            decode_pre.exec()
 
-    def huff_code_table(self, dict_count, dict_code, sorted_key):
+    def huff_code_present(self, dict_count, dict_code, sorted_key, binary_code):
         print("inside func huff_code_table")
         # dict_code: Huffman code
         # dic_count: Word Count
         # sorted_kay: sequence for words
         dialog = QDialog()
-        print("sorted_key:", len(sorted_key))
-        print("dict_code:", len(dict_code))
+        grid_layout = QGridLayout()
+        prompt_font = QFont("Roman times", 13, QFont.Bold)
+        left_prompt_text = QLabel("Word Count:")
+        left_prompt_text.setFont(prompt_font)
+        grid_layout.addWidget(left_prompt_text, 0, 0)
+        right_prompt_text = QLabel("Binary Huff Code:")
+        right_prompt_text.setFont(prompt_font)
+        grid_layout.addWidget(right_prompt_text, 0, 1)
         sta_table = QTableWidget(len(dict_code), 3, dialog)
+        grid_layout.addWidget(sta_table, 1, 0)
         print("huff_code_table creat")
         dialog.setWindowTitle("Huffman Tree")
         header = ["Word", "Count", "Huffman Code"]
@@ -441,8 +461,12 @@ class Text_Editor(QMainWindow):
             sta_table.setItem(i, 2, QTableWidgetItem(str(dict_code[sorted_key[i]])))
         print("table init complete")
         sta_table.show()
-        sta_table.resize(300, 600)
+        binary = QPlainTextEdit(binary_code)
+        binary.setReadOnly(True)
+        grid_layout.addWidget(binary, 1, 1)
+        dialog.setLayout(grid_layout)
         print("table shown")
+        dialog.resize(600, 600)
         dialog.exec()
 
     # ADV FUNCTION
@@ -503,11 +527,17 @@ class Text_Editor(QMainWindow):
                 str_a = file_a.read()
                 str_a = str_a.lower()
                 # tokenize + filter
-                filtered_words = token_filter(str_a)
-                print("OG: ", filtered_words, "\n")
+                word_num = []
+                filtered_words = token_filter(str_a, word_num)
+                # print("word_num:", word_num[0])
+                # print("OG: ", filtered_words, "\n")
                 # stemming
                 stem_words = stemming(filtered_words)
                 # simple counting, result in dict_b
+                word_count = {}
+                tfidf = {}
+                file_num = len(self.path_list)
+                tfidf_count(stem_words, word_count, tfidf, file_num, word_num[0])
                 count_element(stem_words, dict_b)
                 file_a.close()
             sorted_key = sorted_dict(dict_b, dict_b.keys(), reverse=True)
@@ -595,3 +625,5 @@ class Text_Editor(QMainWindow):
 
 # TODO: 高级搜索用表达式求值
 # TODO: TDF-ID
+# TODO: change font size
+# TODO: row:1 con:1
