@@ -240,9 +240,12 @@ def count_element(source, dict_a):
         else:
             dict_a[source[i]] = 1
 
-
-def tf_count(source, word_count, tfidf, file_num, word_num):
-
+# ideas on realizing tfidf
+# [{word count for the first passage}, {word count for the second passage}]
+# master dict = first dict + second dict + ...
+# word_num = len(all passage)
+# !!!!!!!!unfinished!!!!!!
+def tfidf_count(source, word_count, tfidf, file_num, word_num):
     pass
 
 # redundant function

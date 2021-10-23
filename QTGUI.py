@@ -21,6 +21,7 @@ class Text_Editor(QMainWindow):
         window_icon = QIcon("./icon/text_editor.png")
         window_icon.addPixmap(QtGui.QPixmap("my.ico"), QIcon.Normal, QIcon.Off)
 
+        # MainWindow
         super(Text_Editor, self).__init__(parent)
         self.setObjectName("MainWindow")
         self.setWindowTitle("Text Editor")
@@ -29,14 +30,18 @@ class Text_Editor(QMainWindow):
         self.setMouseTracking(False)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setToolTip("")
+
         # plainTextEdit
         self.plainTextEdit = QPlainTextEdit()
-        editor_font = self.plainTextEdit.font()
-        editor_font.setPointSize(20)
-        self.plainTextEdit.setFont(editor_font)
+        self.editor_font = self.plainTextEdit.font()
+        self.editor_font.setPointSize(20)
+        self.plainTextEdit.setFont(self.editor_font)
         self.setCentralWidget(self.plainTextEdit)   # set it as central widget
         self.plainTextEdit.close()      # close, make it invisible
         self.plainTextEdit.textChanged.connect(lambda: self.text_changed())
+        self.plainTextEdit.cursorPositionChanged.connect(lambda: self.cursor_pos_changed())
+        #Cursor
+        self.text_cursor = self.plainTextEdit.textCursor()
 
         # menubar
         self.menubar = self.menuBar()
@@ -63,8 +68,8 @@ class Text_Editor(QMainWindow):
         m_replace = QAction(QIcon("./icon/replace.png"), "Replace", self)
         m_replace.setObjectName("M_Replace")
         m_replace.setShortcut("Ctrl+R")
-        m_remove_hightlight = QAction(QIcon("./icon/remove_tag.png"), "Remove Highlight", self)
-        m_remove_hightlight.setObjectName("M_Remove_Highlight")
+        m_remove_highlight = QAction(QIcon("./icon/remove_tag.png"), "Remove Highlight", self)
+        m_remove_highlight.setObjectName("M_Remove_Highlight")
         m_encode = QAction(QIcon("./icon/encode.png"), "Encode", self)
         m_encode.setObjectName("M_Encode")
         m_decode = QAction(QIcon("./icon/decode.png"), "Decode", self)
@@ -81,7 +86,7 @@ class Text_Editor(QMainWindow):
         menu_edit.addAction(m_find)
         menu_edit.addAction(m_replace)
         menu_edit.addSeparator()
-        menu_edit.addAction(m_remove_hightlight)
+        menu_edit.addAction(m_remove_highlight)
         menu_coding.addAction(m_encode)
         menu_coding.addAction(m_decode)
         menu_advanced.addAction(m_mul_search)
@@ -90,6 +95,20 @@ class Text_Editor(QMainWindow):
         # toolBar
         self.toolBar = self.addToolBar("File")
         self.toolBar.setObjectName("toolBar")
+        self.font_size = QComboBox()
+        combo_font = self.font_size.font()
+        combo_font.setPointSize(13)
+        self.font_size.setFont(combo_font)
+        for i in range(10):
+            self.font_size.addItem(str((i + 1) * 5))
+            temp_font = combo_font
+            temp_font.setPointSize((i + 1) * 5)
+            self.font_size.setItemData(i, temp_font, Qt.FontRole)
+        self.font_size.setCurrentIndex(3)   # default value (3+1)*5 = 20
+        self.font_size.setEditable(True)
+        self.font_size.setMinimumWidth(100)
+        self.font_size.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.font_size.currentTextChanged[str].connect(lambda: self.change_font_size())    # send content
         # add QAction to toolBar
         self.toolBar.addAction(m_new)
         self.toolBar.addAction(m_open)
@@ -97,13 +116,15 @@ class Text_Editor(QMainWindow):
         self.toolBar.addSeparator()
         self.toolBar.addAction(m_find)
         self.toolBar.addAction(m_replace)
-        self.toolBar.addAction(m_remove_hightlight)
+        self.toolBar.addAction(m_remove_highlight)
         self.toolBar.addSeparator()
         self.toolBar.addAction(m_encode)
         self.toolBar.addAction(m_decode)
         self.toolBar.addSeparator()
         self.toolBar.addAction(m_mul_search)
         self.toolBar.addAction(m_statistic)
+        self.toolBar.addSeparator()
+        self.toolBar.addWidget(self.font_size)
 
         # statusbar
         self.statusbar = QStatusBar()
@@ -124,28 +145,6 @@ class Text_Editor(QMainWindow):
         self.statusbar.addPermanentWidget(self.sb_message)
         self.statusbar.addPermanentWidget(self.courser_pos)
         self.statusbar.addPermanentWidget(self.word_count)
-        """QLabel* label = new QLabel("TQSilence");
-
-    if( label != NULL )
-    {
-        statusLbl.setMinimumWidth(200);
-        statusLbl.setAlignment(Qt::AlignCenter);
-        statusLbl.setText("Ln: 1    Col: 1");
-
-        label->setMinimumWidth(200);
-        label->setAlignment(Qt::AlignCenter);
-
-        sb->addPermanentWidget(new QLabel());
-        sb->addPermanentWidget(&statusLbl);
-        sb->addPermanentWidget(label);
-    }
-    else
-    {
-        ret = false;
-    }
-
-    return ret;
-}"""
 
         # connect
         m_new.triggered.connect(self.new_pressed)
@@ -153,7 +152,7 @@ class Text_Editor(QMainWindow):
         m_save.triggered.connect(self.save_pressed)
         m_find.triggered.connect(self.find_pressed)
         m_replace.triggered.connect(self.replace_pressed)
-        m_remove_hightlight.triggered.connect(self.rem_hl_pressed)
+        m_remove_highlight.triggered.connect(self.rem_hl_pressed)
         m_encode.triggered.connect(self.encode_pressed)
         m_decode.triggered.connect(self.decode_pressed)
         m_mul_search.triggered.connect(self.mul_search_pressed)
@@ -534,10 +533,6 @@ class Text_Editor(QMainWindow):
                 # stemming
                 stem_words = stemming(filtered_words)
                 # simple counting, result in dict_b
-                word_count = {}
-                tfidf = {}
-                file_num = len(self.path_list)
-                tfidf_count(stem_words, word_count, tfidf, file_num, word_num[0])
                 count_element(stem_words, dict_b)
                 file_a.close()
             sorted_key = sorted_dict(dict_b, dict_b.keys(), reverse=True)
@@ -604,6 +599,28 @@ class Text_Editor(QMainWindow):
         self.word_count.setText(len(self.plainTextEdit.toPlainText()).__str__() + " Char")
         # self.rem_hl_pressed()
 
+    # Ln is actually block num
+    def cursor_pos_changed(self):
+        print("In func cursor_pos_changed")
+        col = self.text_cursor.columnNumber()
+        row = self.text_cursor.blockNumber()
+        str_a = "Ln:" + str(row+1) + " \t "+"Col:" + str(col+1)
+        self.courser_pos.setText(str_a)
+
+    def change_font_size(self):
+        print("In func change_font_size")
+        size = self.font_size.currentText()
+        if size.isdigit():
+            self.editor_font.setPointSize(int(size))
+            self.plainTextEdit.setFont(self.editor_font)
+        # elif size == "":
+        #     pass    # do nothing if it's blank
+        else:
+            # if not digit, set to default size
+            self.font_size.setCurrentIndex(3)
+            self.editor_font.setPointSize(20)
+            self.plainTextEdit.setFont(self.editor_font)
+
     def locate_sentence(self, list_a):
         file_a = open(list_a[0], mode='r')
         str_a = file_a.read()
@@ -625,5 +642,4 @@ class Text_Editor(QMainWindow):
 
 # TODO: 高级搜索用表达式求值
 # TODO: TDF-ID
-# TODO: change font size
-# TODO: row:1 con:1
+# TODO: check if saved when closing window
