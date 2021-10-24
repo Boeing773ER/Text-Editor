@@ -10,6 +10,7 @@ from TreeVisual import gen_huff_tree
 import webbrowser
 from Structure import *
 from NLPModule import *
+from queue import Queue
 
 
 class Text_Editor(QMainWindow):
@@ -157,7 +158,6 @@ class Text_Editor(QMainWindow):
         m_decode.triggered.connect(self.decode_pressed)
         m_mul_search.triggered.connect(self.mul_search_pressed)
         m_statistic.triggered.connect(self.statistic_pressed)
-        # for test
 
     # BASIC FUNCTION: NEW, OPEN, SAVE
     def new_pressed(self):
@@ -193,8 +193,8 @@ class Text_Editor(QMainWindow):
             print("open fail")
             self.statusbar.showMessage("Open Failed")
 
-    # file path stored in self.path_list
     def open_mul_file(self):
+        # file path stored in self.path_list
         print("inside func open_mul_file")
         file_path = QFileDialog.getOpenFileNames(self, caption="Open Mul Files", filter="*.txt")
         # getOpenFileNames return in format ([path],"*.txt")
@@ -242,8 +242,8 @@ class Text_Editor(QMainWindow):
         file_a.close()
         self.statusbar.showMessage("Saved")
 
-    # Handle Exception: content unsaved, check if saved etc
     def content_unsaved(self):
+        # Handle Exception: content unsaved, check if saved etc
         print("inside func content_unsaved")
         unsaved = QMessageBox.information(self, "Save?", "Current content unsaved. Do you wish to save it?",
                                           QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Yes)
@@ -318,7 +318,6 @@ class Text_Editor(QMainWindow):
             else:
                 self.target_not_find()
 
-    # TODO: complete func replace_pressed, connect pushbutton
     def replace_pressed(self):
         print("inside func replace_pressed")
         if self.plainTextEdit.isHidden():
@@ -329,31 +328,49 @@ class Text_Editor(QMainWindow):
             replace_input = QDialog()
             replace_input.setWindowTitle("Replace")
             print("set title")
-            old_label = QLabel("Old")
-            new_label = QLabel("New")
+
+            old_label = QLabel("Old: ")
+            new_label = QLabel("New: ")
+            label_font = old_label.font()
+            label_font.setPointSize(13)
+            old_label.setFont(label_font)
+            new_label.setFont(label_font)
             old_text = QLineEdit()
             new_text = QLineEdit()
+
+            button_box = QDialogButtonBox()
             replace_button = QPushButton("Replace")
             cancel_button = QPushButton("Cancel")
+            button_box.addButton(replace_button, QDialogButtonBox.AcceptRole)
+            button_box.addButton(cancel_button, QDialogButtonBox.RejectRole)
+            button_box.accepted.connect(lambda: self.replace_process(dialog, old_text.text(), new_text.text()))
+            button_box.rejected.connect(lambda: self.replace_close(dialog))
+
             print("init widget")
             layout.addWidget(old_label, 0, 0)
             layout.addWidget(old_text, 0, 1)
             layout.addWidget(new_label, 1, 0)
             layout.addWidget(new_text, 1, 1)
-            layout.addWidget(replace_button, 2, 0)
-            layout.addWidget(cancel_button, 2, 1)
+            layout.addWidget(button_box, 2, 0, 1, 2)
             print("done layout")
             dialog.setLayout(layout)
-            # replace_button.customContextMenuRequested.connect(self.replace_process())
-            # replace_button.click.connect(self.replace_process())
-            # cancel_button.clicked.connect()
             dialog.exec()
 
     def target_not_find(self):
         print("inside func target_not_find")
 
-    # remove high-light
+    def replace_process(self, dialog, old, new):
+        print("inside func replace_process")
+        str_a = kmp_replace(self.plainTextEdit.toPlainText(), old, new)
+        self.plainTextEdit.setPlainText(str_a)
+        dialog.destroy()
+
+    def replace_close(self, dialog):
+        print("inside func replace_close")
+        dialog.destroy()
+
     def rem_hl_pressed(self):
+        # remove high-light
         print("inside func rem_hl_pressed")
         document = self.plainTextEdit.document()
         highlight_cursor = QTextCursor(document)
@@ -487,8 +504,8 @@ class Text_Editor(QMainWindow):
             find_input.setInputMode(QInputDialog.TextInput)
             if find_input.exec() == QInputDialog.Accepted:
                 str_pattern = find_input.textValue()
-            str_pattern = str_pattern.lstrip()  # remove space on the left
-            temp_pos = 0
+
+            """temp_pos = 0
             word_list = []
             for i in range(len(str_pattern)):
                 if str_pattern[i] == ' ':
@@ -509,7 +526,7 @@ class Text_Editor(QMainWindow):
                 for i in word_list:
                     pos_list = inv_index[i]  # pos_list:[[path, pos], [path, pos]]
                     for j in pos_list:
-                        print(self.locate_sentence(j))
+                        print(self.locate_sentence(j))"""
 
     def statistic_pressed(self):
         print("inside func statistic_pressed")
@@ -560,6 +577,7 @@ class Text_Editor(QMainWindow):
         print("table shown")
         dialog.exec()
 
+    # improve the data structure of inverted index
     def inverted_index(self):
         print("inside func inverted_index")
         # get file path from self.path_list
@@ -591,16 +609,33 @@ class Text_Editor(QMainWindow):
             file_a.close()
         return inv_index
 
-    def replace_process(self):
-        print("inside func replace_process")
+    def locate_sentence(self, list_a):
+        file_a = open(list_a[0], mode='r')
+        str_a = file_a.read()
+        w_pos = list_a[1]
+        s_pos = 0   # start pos
+        e_pos = 0   # end pos
+        for i in range(w_pos, len(str_a)):
+            if str_a[i] == '.' or str_a[i] == '!' or str_a[i] == '?' or str_a[i] == '>' or str_a[i] == '<':
+                e_pos = i
+                break
+        s_pos = w_pos
+        while s_pos >= 0:
+            if str_a[s_pos] == '.' or str_a[s_pos] == '!' or str_a[s_pos] == '?' or str_a[s_pos] == '>' \
+                    or str_a[s_pos] == '<':
+                print(s_pos, str_a[s_pos])
+                break
+            s_pos -= 1
+        return [list_a[0], s_pos, e_pos]
 
+    # FUNC RELATED TO STATUS BAR
     def text_changed(self):
         print("in func text_changed")
         self.word_count.setText(len(self.plainTextEdit.toPlainText()).__str__() + " Char")
         # self.rem_hl_pressed()
 
-    # Ln is actually block num
     def cursor_pos_changed(self):
+        # Ln is actually block num
         print("In func cursor_pos_changed")
         col = self.text_cursor.columnNumber()
         row = self.text_cursor.blockNumber()
@@ -620,25 +655,6 @@ class Text_Editor(QMainWindow):
             self.font_size.setCurrentIndex(3)
             self.editor_font.setPointSize(20)
             self.plainTextEdit.setFont(self.editor_font)
-
-    def locate_sentence(self, list_a):
-        file_a = open(list_a[0], mode='r')
-        str_a = file_a.read()
-        w_pos = list_a[1]
-        s_pos = 0   # start pos
-        e_pos = 0   # end pos
-        for i in range(w_pos, len(str_a)):
-            if str_a[i] == '.' or str_a[i] == '!' or str_a[i] == '?' or str_a[i] == '>' or str_a[i] == '<':
-                e_pos = i
-                break
-        s_pos = w_pos
-        while s_pos >= 0:
-            if str_a[s_pos] == '.' or str_a[s_pos] == '!' or str_a[s_pos] == '?' or str_a[s_pos] == '>' \
-                    or str_a[s_pos] == '<':
-                print(s_pos, str_a[s_pos])
-                break
-            s_pos -= 1
-        return [list_a[0], s_pos, e_pos]
 
 # TODO: 高级搜索用表达式求值
 # TODO: TDF-ID

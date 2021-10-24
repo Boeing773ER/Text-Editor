@@ -1,3 +1,33 @@
+from queue import Queue
+
+
+class StackUnderflow(ValueError):   # 栈下溢(空栈访问)
+    pass
+
+
+class SStack:
+    def __init__(self):
+        self._elems = []    # store element using list
+
+    def is_empty(self):
+        return self._elems == []
+
+    def push(self, elem):
+        self._elems.append(elem)
+
+    def pop(self):
+        # return and delete
+        if self._elems == []:
+            raise StackUnderflow("in SStack.pop()")
+        return self._elems.pop()
+
+    def top(self):
+        # return the last element
+        if self._elems == []:
+            raise StackUnderflow("in SStack.top()")
+        return self._elems[-1]
+
+
 class MinHeap(object):
     currentSize = 0
     maxSize = 0
@@ -267,3 +297,73 @@ def sorted_dict(container, keys, reverse=False):
         aux.reverse()
     return [k for v, k in aux]
 
+def nifix_to_postfix(str_pattern):
+    priority = {'|': 1, '&': 2, '(': 3}
+    str_pattern = str_pattern.replace(' ', '')  # remove all the space in the string
+    queue_a = Queue()
+    stack_a = SStack()
+    if str_pattern != "":
+
+        while str_pattern != "":
+            item = []
+            str_pattern = get_next_item(str_pattern, item)
+            item = item[0]  # item = "string"
+
+            print("str_a:", str_pattern)
+            print("item:", item[0], len(item[0]))
+
+            if item[0] == '~':
+                # when item is a word with '~'
+                # processing multiple '~'
+                for i in range(len(item)):
+                    if item[i] != '~':
+                        if i % 2:
+                            item = '~' + item[i:]
+                            break
+                        else:
+                            item = item[i:]
+                            break
+                if item == '~':
+                    print("invalid equation")
+                    break
+                else:
+                    queue_a.put(item)
+            elif item[0] != '(' and item[0] != ')' and item[0] != '&' and item[0] != '|':
+                # when item is a word
+                queue_a.put(item)
+            elif stack_a.is_empty():
+                # when item is a sign and the stack in empty
+                stack_a.push(item)
+            elif item == ')':
+                while stack_a.top() != '(':
+                    queue_a.put(stack_a.pop())
+                stack_a.pop()   # pop '('
+                continue
+            elif stack_a.top() == '(' or priority[stack_a.top()] < priority[item]:
+                stack_a.push(item)
+            elif stack_a.top() != '(' and priority[stack_a.top()] >= priority[item]:
+                queue_a.put(stack_a.pop())
+                while (not stack_a.is_empty()) and stack_a.top() != '(' and priority[stack_a.top()] >= priority[item]:
+                    queue_a.put(stack_a.pop())
+                stack_a.push(item)
+        while not stack_a.is_empty():
+            queue_a.put(stack_a.pop())
+        return queue_a
+    else:
+        print("Invalid input")
+
+
+def get_next_item(str_a, item):
+    # next element or sign
+    # return new_str, item
+    i = 0
+    if str_a[i] == '(' or str_a[i] == ')' or str_a[i] == '&' or str_a[i] == '|':
+        item.append(str_a[i])
+        return str_a[1:]
+    else:
+        for i in range(len(str_a)):
+            if str_a[i] == '(' or str_a[i] == ')' or str_a[i] == '&' or str_a[i] == '|':
+                item.append(str_a[:i])
+                return str_a[i:]
+        item.append(str_a[:i+1])
+        return ""
