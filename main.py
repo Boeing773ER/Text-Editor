@@ -15,15 +15,12 @@ if __name__ == '__main__':
     text_editor.show()
     sys.exit(app.exec_())
 
-    """list_1 = [1, 2, 3]
-    list_2 = [1, 2, 4, 10]
-    list_3 = list(set(list_1).intersection(set(list_2)))
-    print(list_3)
-
-    list_4 = [2, 5, 3, 1, 4]
-    list_4.sort()
-    print(list_4)"""
-
+    """word_pos = []
+    word_list = ['of', 'that', 'a']
+    for word in word_list:
+        temp = kmp_matching("Starts out with a opening scene that is a terrific example of absurd comedy", word)
+        word_pos.extend(temp)
+    print(word_pos)"""
     """str_a = "   ~ ~ aaa | bbb  &ccc"
     queue_a = nifix_to_postfix(str_a)
     while not queue_a.empty():

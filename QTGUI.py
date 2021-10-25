@@ -256,6 +256,9 @@ class Text_Editor(QMainWindow):
             print("file saved, closing plainTextEdit")
             self.plainTextEdit.clear()
             self.plainTextEdit.close()
+            # update status bar
+            self.word_count.setText("0 Char")
+            self.courser_pos.setText("Ln:0 \t Col:0")
             print("hidden:", self.plainTextEdit.isHidden())
             print("plaintextedit hidden")
         elif unsaved == QMessageBox.No:
@@ -263,6 +266,8 @@ class Text_Editor(QMainWindow):
             self.statusbar.showMessage("Discard Unsaved File")
             self.plainTextEdit.clear()
             self.plainTextEdit.close()
+            self.word_count.setText("0 Char")
+            self.courser_pos.setText("Ln:0 \t Col:0")
 
     def content_empty(self):
         print("inside func content_empty")
@@ -492,12 +497,15 @@ class Text_Editor(QMainWindow):
         dialog.exec()
 
     # ADV FUNCTION
-    # TODO: complete func mul_search_pressed
     def mul_search_pressed(self):
         print("inside func mul_search_pressed")
         # check if saved. Close it if saved
         self.check_if_saved()
         self.plainTextEdit.close()
+        # update status bar
+        self.word_count.setText("0 Char")
+        self.courser_pos.setText("Ln:0 \t Col:0")
+
         self.open_mul_file()
         if not self.path_list:
             print("mul_search open fail")
@@ -524,7 +532,6 @@ class Text_Editor(QMainWindow):
                     if temp_str == '&' or temp_str == '|':
                         index1 = stack_a.pop()
                         index2 = stack_a.pop()
-                        # TODO: write a func to process & |
                         result = self.expression_calculation(index1, index2, temp_str)
                         stack_a.push(result)
                     else:
@@ -536,36 +543,19 @@ class Text_Editor(QMainWindow):
                             word_list.append(temp_str)
                         stack_a.push(temp_index)
                         print(temp_index)
-                print('final:', stack_a.top())
-            # don't delete this!
-            """temp_pos = 0
-            word_list = []
-            for i in range(len(str_pattern)):
-                if str_pattern[i] == ' ':
-                    word_list.append(str_pattern[temp_pos:i])
-                    temp_pos = i + 1
-            word_list.append(str_pattern[temp_pos:len(str_pattern)])    # add last word
-            print(word_list)
-            # not finished
-            result_list = []
-            if len(word_list) == 1:
-                # wrong
-                pos_list = inv_index[word_list[0]]  # pos_list:[[path, pos], [path, pos]]
-                for j in pos_list:
-                    result_list.append(self.locate_sentence(j))
-                # repetition in result_list
-                print(result_list)
-            else:
-                for i in word_list:
-                    pos_list = inv_index[i]  # pos_list:[[path, pos], [path, pos]]
-                    for j in pos_list:
-                        print(self.locate_sentence(j))"""
+                result = stack_a.top()
+                print('final:', result)
+                self.search_result_present(result, word_list, sentence_index)
 
     def statistic_pressed(self):
         print("inside func statistic_pressed")
         # check if saved. Close it if saved.
         self.check_if_saved()
         self.plainTextEdit.close()
+        # update status bar
+        self.word_count.setText("0 Char")
+        self.courser_pos.setText("Ln:0 \t Col:0")
+
         dict_b = dict()
         self.open_mul_file()
         if not self.path_list:
@@ -734,7 +724,6 @@ class Text_Editor(QMainWindow):
     def expression_calculation(self, index1, index2, sign):
         # index1\2 are indexed by sentence No.
         print("inside func expression_cal")
-
         if sign == '|':
             result = index1.copy()
             for key in index2.keys():
@@ -757,6 +746,76 @@ class Text_Editor(QMainWindow):
         else:
             print("sign wrong")
         return result
+
+    def search_result_present(self, result, word_list, sentence_index):
+        print("Inside func search_result_present")
+        # sentence_index described the pos of each sentences
+        # set the font for label and plain text editor
+        label_font = QLabel().font()
+        label_font.setPointSize(10)
+        label_font.setBold(True)
+        text_font = QLabel().font()
+        text_font.setPointSize(15)
+        print("font done")
+        # Init QDialog
+        search_result = QDialog()
+        search_result.setWindowTitle("Inverted search result")
+        result_count = 0
+        print("init window")
+        for key in result.keys():
+            # get the number of result
+            result_count += len(result[key])
+        print("result count")
+        v_layout = QVBoxLayout()
+        for key in result.keys():
+            # key is the path of the file
+            print("key:", key)
+            i = 0
+            while i < len(result[key]):
+                temp_label = QLabel()
+                temp_label.setText(key)
+                temp_label.setFont(label_font)
+                v_layout.addWidget(temp_label)
+                temp_text = QPlainTextEdit()
+                temp_text.setReadOnly(True)
+                temp_text.setFont(text_font)
+                temp_text.setMaximumHeight(75)
+                # temp_text.sizePolicy(QSizePolicy.Preferred)
+                print(sentence_index[key][result[key][i]])
+                sentence_pos = sentence_index[key][result[key][i]]  # return [start_pos, end_pos]
+                temp_file = open(key, mode='r')
+                temp_str = temp_file.read()
+                temp_str = temp_str[sentence_pos[0]: sentence_pos[1]]
+                temp_text.setPlainText(temp_str)
+                print(temp_str)
+                # set high light
+                word_pos = []
+                print("word_list:", word_list)
+                for word in word_list:
+                    print(word)
+                    # get pos of target
+                    kmp_result = kmp_matching(temp_str, word)
+                    if kmp_result != -1:
+                        word_pos.extend(kmp_result)
+                    print(word_pos)
+                document = temp_text.document()
+                highlight_cursor = QTextCursor(document)
+                cursor = QTextCursor(document)
+                cursor.beginEditBlock()
+                color_format = QTextCharFormat(highlight_cursor.charFormat())
+                color_format.setBackground(Qt.yellow)
+                for i_alter in range(0, len(word_pos)):
+                    pos = len(word_pos) - 1 - i_alter
+                    QTextCursor.setPosition(highlight_cursor, word_pos[pos])
+                    highlight_cursor.select(QTextCursor.WordUnderCursor)
+                    highlight_cursor.mergeCharFormat(color_format)
+                cursor.endEditBlock()
+
+                temp_file.close()
+                v_layout.addWidget(temp_text)
+                i += 1
+        search_result.setLayout(v_layout)
+        search_result.exec()
 
     # FUNC RELATED TO STATUS BAR
     def text_changed(self):
@@ -786,6 +845,5 @@ class Text_Editor(QMainWindow):
             self.editor_font.setPointSize(20)
             self.plainTextEdit.setFont(self.editor_font)
 
-# TODO: 高级搜索用表达式求值
 # TODO: TDF-ID
 # TODO: check if saved when closing window
