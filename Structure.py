@@ -297,6 +297,7 @@ def sorted_dict(container, keys, reverse=False):
         aux.reverse()
     return [k for v, k in aux]
 
+
 def nifix_to_postfix(str_pattern):
     priority = {'|': 1, '&': 2, '(': 3}
     str_pattern = str_pattern.replace(' ', '')  # remove all the space in the string

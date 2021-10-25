@@ -159,6 +159,9 @@ class Text_Editor(QMainWindow):
         m_mul_search.triggered.connect(self.mul_search_pressed)
         m_statistic.triggered.connect(self.statistic_pressed)
 
+        # testing
+        # self.inverted_index()
+
     # BASIC FUNCTION: NEW, OPEN, SAVE
     def new_pressed(self):
         print("inside func new_pressed")
@@ -296,6 +299,9 @@ class Text_Editor(QMainWindow):
             find_input.setInputMode(QInputDialog.TextInput)
             if find_input.exec() == QInputDialog.Accepted:
                 str_pattern = find_input.textValue()
+            elif find_input.exec() == QInputDialog.Rejected:
+                find_input.destroy()
+                return
             print("QInputDialog show")
             str_target = self.plainTextEdit.toPlainText()
             text_pos = kmp_matching(str_target, str_pattern)
@@ -496,15 +502,42 @@ class Text_Editor(QMainWindow):
         if not self.path_list:
             print("mul_search open fail")
         else:
-            inv_index = self.inverted_index()
-            print(inv_index)
+            inv_index, sentence_index = self.inverted_index()
+            inv_sen_no_index = self.pos_to_sentence_no(inv_index, sentence_index)
+            # Input dialog
             find_input = QInputDialog()
             find_input.setWindowTitle("Inverted Index Find")
             find_input.setLabelText("Find:")
             find_input.setInputMode(QInputDialog.TextInput)
+            str_pattern = ''
             if find_input.exec() == QInputDialog.Accepted:
                 str_pattern = find_input.textValue()
-
+            elif find_input.exec() == QInputDialog.Rejected:
+                pass
+            print("str_pattern:", str_pattern)
+            word_list = []
+            if str_pattern != '':
+                queue = nifix_to_postfix(str_pattern)
+                stack_a = SStack()
+                while not queue.empty():
+                    temp_str = queue.get()
+                    if temp_str == '&' or temp_str == '|':
+                        index1 = stack_a.pop()
+                        index2 = stack_a.pop()
+                        # TODO: write a func to process & |
+                        result = self.expression_calculation(index1, index2, temp_str)
+                        stack_a.push(result)
+                    else:
+                        # into stack
+                        if temp_str[0] == '~':
+                            temp_index = self.invert_select(temp_str, sentence_index, inv_sen_no_index)
+                        else:
+                            temp_index = inv_sen_no_index[temp_str]
+                            word_list.append(temp_str)
+                        stack_a.push(temp_index)
+                        print(temp_index)
+                print('final:', stack_a.top())
+            # don't delete this!
             """temp_pos = 0
             word_list = []
             for i in range(len(str_pattern)):
@@ -578,38 +611,69 @@ class Text_Editor(QMainWindow):
         dialog.exec()
 
     # improve the data structure of inverted index
+    # sentence dict{'file_path':{'1': [start pos, end pos], '2': [start pos, end pos]}, 'second file_path':{}}
+    # inv_index: {'word':{"path1":[pos1, pos3], "path2":[pos3, pos4]}, 'word2':{'path': [pos]}}
     def inverted_index(self):
         print("inside func inverted_index")
         # get file path from self.path_list
         inv_index = dict()  # inverted_index
-        # inv_index[word] = [[file_path, word_pos],[]]
+        # Abandoned: inv_index[word] = [[file_path, word_pos],[]]
         file_path = self.path_list
-        # file_path = ["D:/University Courses/Data Structure Design/Source Code/test data/0_3.txt",
-        #               "D:/University Courses/Data Structure Design/Source Code/test data/1_1.txt"]  # testing
+        sentence_dict = {}
         for path_a in file_path:
             # open a single file and convert it to string
             file_a = open(path_a, mode='r')
             str_a = file_a.read()
             # Case insensitive
             str_a = str_a.lower()
-            j = 0
+            # TODO: consider improving the structure of inverted index
+            # list of sentence
+            # sentence dict{'file_path':{file}, 'second file_path':{}}
+            # file:{'1': [start pos, end pos], '2': [start pos, end pos]}
+            # indexing sentence
+            pos = 0
+            sentence_no = 1
+            sentence_temp_dict = {}
+            while pos < len(str_a):
+                temp_list = self.locate_sentence([path_a, pos])
+                sentence_temp_dict[sentence_no] = temp_list[1:]
+                # print(sentence_no, temp_list[1:])
+                pos = temp_list[2] + 1
+                sentence_no += 1
+            # print("temp_dict:", temp_dict)
+            sentence_dict[path_a] = sentence_temp_dict
             # indexing word in this file
+            # inv_index: {'word':{"path1":[pos1, pos3], "path2":[pos3, pos4]}, 'word2':{'path': [pos]}}
+            # inv_index[word] = {"path1":[pos1, pos3], "path2":[pos3, pos4]}
+            print("done sentence")
+            j = 0
             for i in range(len(str_a)):
                 if not str_a[i].isalpha():
                     if str_a[j].isalpha():
                         temp_str = str_a[j:i]
-                        if temp_str in inv_index:
-                            inv_index[temp_str].append([path_a, j])
+                        if temp_str not in inv_index:
+                            # inv_index[temp_str] = {}
+                            word_temp_dict = {}
+                            pos_list = [j]
+                            word_temp_dict[path_a] = pos_list
+                            inv_index[temp_str] = word_temp_dict
                         else:
-                            inv_index[temp_str] = [[path_a, j]]
+                            if path_a in inv_index[temp_str]:
+                                inv_index[temp_str][path_a].append(j)
+                            else:
+                                inv_index[temp_str][path_a] = [j]
+                            # inv_index[temp_str] = [[path_a, j]]
                         j = i
                 elif not str_a[j].isalpha():
                     # find the starting pos of the next word
                     j = i
             file_a.close()
-        return inv_index
+        print("inverted_dict: ", inv_index)
+        return inv_index, sentence_dict
 
     def locate_sentence(self, list_a):
+        print("inside func locate_sentence")
+        # list_a: [path, word pos]
         file_a = open(list_a[0], mode='r')
         str_a = file_a.read()
         w_pos = list_a[1]
@@ -623,10 +687,76 @@ class Text_Editor(QMainWindow):
         while s_pos >= 0:
             if str_a[s_pos] == '.' or str_a[s_pos] == '!' or str_a[s_pos] == '?' or str_a[s_pos] == '>' \
                     or str_a[s_pos] == '<':
-                print(s_pos, str_a[s_pos])
+                # print(s_pos, str_a[s_pos])
                 break
             s_pos -= 1
+        s_pos += 1
         return [list_a[0], s_pos, e_pos]
+
+    def invert_select(self, word, u_set, sentence):
+        print("inside func invert_select")
+        # processing '~'
+        # u_set: universal set contains all sentence num of each passage
+        # sentence: inverted_index with sentence no
+        word = word[1:]
+        original = sentence[word]
+        result = original.copy()
+        for path in u_set.keys():
+            count = len(u_set[path])
+            result[path] = []
+            for i in range(count):
+                exist = False
+                for j in original[path]:
+                    if j == i+1:
+                        exist = True
+                if not exist:
+                    result[path].append(i+1)
+        return result
+
+    def pos_to_sentence_no(self, pos_index, sentence_index):
+        print("inside func pos_to_sentence_no")
+        sen_no_index = pos_index.copy()
+        for key in pos_index.keys():
+            for path in pos_index[key].keys():
+                temp_list = pos_index[key][path]
+                sen_no_index[key][path] = []
+                for pos in temp_list:
+                    for i in sentence_index[path].keys():
+                        if sentence_index[path][i][0] <= pos <= sentence_index[path][i][1]:
+                            if len(sen_no_index[key][path]) > 0:
+                                if sen_no_index[key][path][-1] != i:
+                                    sen_no_index[key][path].append(i)
+                            else:
+                                sen_no_index[key][path].append(i)
+                            break
+        return sen_no_index
+
+    def expression_calculation(self, index1, index2, sign):
+        # index1\2 are indexed by sentence No.
+        print("inside func expression_cal")
+
+        if sign == '|':
+            result = index1.copy()
+            for key in index2.keys():
+                if key not in result:
+                    result[key] = index2[key].copy()
+                else:
+                    result[key].extend(index2[key])
+                    temp_list = list(set(result[key]))
+                    print(temp_list)
+                    temp_list.sort()
+                    result[key] = temp_list
+        elif sign == '&':
+            result = index1.copy()
+            for key in index2.keys():
+                if key not in result:
+                    continue
+                else:
+                    temp_list = list(set(result[key]).intersection(set(index2[key])))
+                    result[key] = temp_list
+        else:
+            print("sign wrong")
+        return result
 
     # FUNC RELATED TO STATUS BAR
     def text_changed(self):
