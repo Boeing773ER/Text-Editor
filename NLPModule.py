@@ -23,6 +23,15 @@ def token_filter(str_a, word_num):
     return [word for word in word_token if word not in stop_words]
 
 
+def token_word_count(str_a):
+    lower = str_a.lower()
+    lower = remove_punctuation(lower)
+    lower = kmp_replace(lower, "<br />", "")  # remove the <br /> in text
+    remove = str.maketrans('', '', string.punctuation)
+    removed = lower.translate(remove)
+    return len(nltk.word_tokenize(removed))
+
+
 def stemming(filtered_words):
     # stemming
     snowball_stemmer = SnowballStemmer('english')

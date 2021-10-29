@@ -1,5 +1,4 @@
 #pyuic5 -o ui.py bus_direct.ui
-import sys
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
@@ -16,9 +15,10 @@ from queue import Queue
 class Text_Editor(QMainWindow):
     def __init__(self, parent=None):
         self.openfile = list()  # single file
-        self.path_list = list() # multiple file
+        self.path_list = list()     # multiple file
         self.binary_code = ""
         self.huff_a = HuffmanTree
+        self.inv_index = dict()     # inverted_index
         window_icon = QIcon("./icon/text_editor.png")
         window_icon.addPixmap(QtGui.QPixmap("my.ico"), QIcon.Normal, QIcon.Off)
 
@@ -42,7 +42,7 @@ class Text_Editor(QMainWindow):
         self.plainTextEdit.textChanged.connect(lambda: self.text_changed())
         self.plainTextEdit.cursorPositionChanged.connect(lambda: self.cursor_pos_changed())
         #Cursor
-        self.text_cursor = self.plainTextEdit.textCursor()
+        # self.text_cursor = self.plainTextEdit.textCursor()
 
         # menubar
         self.menubar = self.menuBar()
@@ -99,13 +99,19 @@ class Text_Editor(QMainWindow):
         self.font_size = QComboBox()
         combo_font = self.font_size.font()
         combo_font.setPointSize(13)
+        font_label = QLabel()
+        font_label.setText("Font Size:")
+        temp_font = font_label.font()
+        temp_font.setBold(True)
+        font_label.setFont(temp_font)
         self.font_size.setFont(combo_font)
+        font_size_list = [10, 11, 12, 13, 15, 17, 20, 23, 26, 30]
         for i in range(10):
-            self.font_size.addItem(str((i + 1) * 5))
+            self.font_size.addItem(str(font_size_list[i]))
             temp_font = combo_font
-            temp_font.setPointSize((i + 1) * 5)
+            temp_font.setPointSize(font_size_list[i])
             self.font_size.setItemData(i, temp_font, Qt.FontRole)
-        self.font_size.setCurrentIndex(3)   # default value (3+1)*5 = 20
+        self.font_size.setCurrentIndex(6)   # default value (3+1)*5 = 20
         self.font_size.setEditable(True)
         self.font_size.setMinimumWidth(100)
         self.font_size.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
@@ -125,6 +131,7 @@ class Text_Editor(QMainWindow):
         self.toolBar.addAction(m_mul_search)
         self.toolBar.addAction(m_statistic)
         self.toolBar.addSeparator()
+        self.toolBar.addWidget(font_label)
         self.toolBar.addWidget(self.font_size)
 
         # statusbar
@@ -135,7 +142,7 @@ class Text_Editor(QMainWindow):
         self.courser_pos = QLabel()
         self.courser_pos.setMinimumWidth(200)
         self.courser_pos.setAlignment(Qt.AlignCenter)
-        self.courser_pos.setText("Ln:1 \t Col:1")
+        self.courser_pos.setText("Bl:1 \t Col:1")
         self.sb_message = QLabel()
         self.sb_message.setMinimumWidth(200)
         self.sb_message.setAlignment(Qt.AlignCenter)
@@ -258,7 +265,7 @@ class Text_Editor(QMainWindow):
             self.plainTextEdit.close()
             # update status bar
             self.word_count.setText("0 Char")
-            self.courser_pos.setText("Ln:0 \t Col:0")
+            self.courser_pos.setText("Bl:0 \t Col:0")
             print("hidden:", self.plainTextEdit.isHidden())
             print("plaintextedit hidden")
         elif unsaved == QMessageBox.No:
@@ -267,7 +274,7 @@ class Text_Editor(QMainWindow):
             self.plainTextEdit.clear()
             self.plainTextEdit.close()
             self.word_count.setText("0 Char")
-            self.courser_pos.setText("Ln:0 \t Col:0")
+            self.courser_pos.setText("Bl:0 \t Col:0")
 
     def content_empty(self):
         print("inside func content_empty")
@@ -369,6 +376,8 @@ class Text_Editor(QMainWindow):
 
     def target_not_find(self):
         print("inside func target_not_find")
+        not_found = QMessageBox.information(self, "Not Found", "Target Not Found.",
+                                            QMessageBox.Yes, QMessageBox.Yes)
 
     def replace_process(self, dialog, old, new):
         print("inside func replace_process")
@@ -504,14 +513,15 @@ class Text_Editor(QMainWindow):
         self.plainTextEdit.close()
         # update status bar
         self.word_count.setText("0 Char")
-        self.courser_pos.setText("Ln:0 \t Col:0")
+        self.courser_pos.setText("Bl:0 \t Col:0")
 
         self.open_mul_file()
+        result_exist = True     # take it as default that result exist
         if not self.path_list:
             print("mul_search open fail")
         else:
-            inv_index, sentence_index = self.inverted_index()
-            inv_sen_no_index = self.pos_to_sentence_no(inv_index, sentence_index)
+            self.inv_index, sentence_index = self.inverted_index()
+            inv_sen_no_index = self.pos_to_sentence_no(self.inv_index, sentence_index)
             # Input dialog
             find_input = QInputDialog()
             find_input.setWindowTitle("Inverted Index Find")
@@ -525,7 +535,7 @@ class Text_Editor(QMainWindow):
             print("str_pattern:", str_pattern)
             word_list = []
             if str_pattern != '':
-                queue = nifix_to_postfix(str_pattern)
+                queue = infix_to_postfix(str_pattern)
                 stack_a = SStack()
                 while not queue.empty():
                     temp_str = queue.get()
@@ -534,18 +544,33 @@ class Text_Editor(QMainWindow):
                         index2 = stack_a.pop()
                         result = self.expression_calculation(index1, index2, temp_str)
                         stack_a.push(result)
-                    else:
+                    elif temp_str in inv_sen_no_index:
+                        print("in marker", temp_str)
+                        print()
                         # into stack
                         if temp_str[0] == '~':
                             temp_index = self.invert_select(temp_str, sentence_index, inv_sen_no_index)
                         else:
                             temp_index = inv_sen_no_index[temp_str]
+                            print("temp_index:", temp_index)
                             word_list.append(temp_str)
+                        print("temp_index:", temp_index)
                         stack_a.push(temp_index)
                         print(temp_index)
-                result = stack_a.top()
+                    else:
+                        print("dont exist")
+                        result_exist = False
+                        break
+                result = None
+                if not stack_a.is_empty():
+                    result = stack_a.top()
+                    count = 0
+                    for path in result.keys():
+                        count += len(result[path])
+                    if count == 0:
+                        result_exist = False
                 print('final:', result)
-                self.search_result_present(result, word_list, sentence_index)
+                self.search_result_present(result, word_list, sentence_index, result_exist)
 
     def statistic_pressed(self):
         print("inside func statistic_pressed")
@@ -554,7 +579,7 @@ class Text_Editor(QMainWindow):
         self.plainTextEdit.close()
         # update status bar
         self.word_count.setText("0 Char")
-        self.courser_pos.setText("Ln:0 \t Col:0")
+        self.courser_pos.setText("Bl:0 \t Col:0")
 
         dict_b = dict()
         self.open_mul_file()
@@ -747,8 +772,9 @@ class Text_Editor(QMainWindow):
             print("sign wrong")
         return result
 
-    def search_result_present(self, result, word_list, sentence_index):
+    def search_result_present(self, result, word_list, sentence_index, exist):
         print("Inside func search_result_present")
+        # print(result)
         # sentence_index described the pos of each sentences
         # set the font for label and plain text editor
         label_font = QLabel().font()
@@ -756,66 +782,112 @@ class Text_Editor(QMainWindow):
         label_font.setBold(True)
         text_font = QLabel().font()
         text_font.setPointSize(15)
-        print("font done")
+        # print("font done")
         # Init QDialog
         search_result = QDialog()
         search_result.setWindowTitle("Inverted search result")
         result_count = 0
-        print("init window")
-        for key in result.keys():
-            # get the number of result
-            result_count += len(result[key])
-        print("result count")
-        v_layout = QVBoxLayout()
-        for key in result.keys():
-            # key is the path of the file
-            print("key:", key)
-            i = 0
-            while i < len(result[key]):
-                temp_label = QLabel()
-                temp_label.setText(key)
-                temp_label.setFont(label_font)
-                v_layout.addWidget(temp_label)
-                temp_text = QPlainTextEdit()
-                temp_text.setReadOnly(True)
-                temp_text.setFont(text_font)
-                temp_text.setMaximumHeight(75)
-                # temp_text.sizePolicy(QSizePolicy.Preferred)
-                print(sentence_index[key][result[key][i]])
-                sentence_pos = sentence_index[key][result[key][i]]  # return [start_pos, end_pos]
-                temp_file = open(key, mode='r')
-                temp_str = temp_file.read()
-                temp_str = temp_str[sentence_pos[0]: sentence_pos[1]]
-                temp_text.setPlainText(temp_str)
-                print(temp_str)
-                # set high light
-                word_pos = []
-                print("word_list:", word_list)
-                for word in word_list:
-                    print(word)
-                    # get pos of target
-                    kmp_result = kmp_matching(temp_str, word)
-                    if kmp_result != -1:
-                        word_pos.extend(kmp_result)
-                    print(word_pos)
-                document = temp_text.document()
-                highlight_cursor = QTextCursor(document)
-                cursor = QTextCursor(document)
-                cursor.beginEditBlock()
-                color_format = QTextCharFormat(highlight_cursor.charFormat())
-                color_format.setBackground(Qt.yellow)
-                for i_alter in range(0, len(word_pos)):
-                    pos = len(word_pos) - 1 - i_alter
-                    QTextCursor.setPosition(highlight_cursor, word_pos[pos])
-                    highlight_cursor.select(QTextCursor.WordUnderCursor)
-                    highlight_cursor.mergeCharFormat(color_format)
-                cursor.endEditBlock()
+        # print("init window")
+        saw_content = QWidget()
+        v_layout = QVBoxLayout(saw_content)
+        if exist:
+            for key in result.keys():
+                # get the number of result
+                result_count += len(result[key])
+            # print("result count")
+            rank_dict = {}
+            for key in result.keys():
+                # key is the path of the file
+                # print("key:", key)
+                i = 0
+                # thoughts on implementing TF-IDF ranking
+                # init & calculate the TDF-ID value of each result.
+                # store QWidgets in list
+                # use this list as the key, TDF-ID as value
+                # sort this dict. Output by TDF-ID value
 
-                temp_file.close()
-                v_layout.addWidget(temp_text)
-                i += 1
-        search_result.setLayout(v_layout)
-        search_result.exec()
+                while i < len(result[key]):
+                    widgets_list = []
+                    temp_label = QLabel()
+                    temp_label.setText(key)
+                    temp_label.setFont(label_font)
+                    # v_layout.addWidget(temp_label)
+                    widgets_list.append(temp_label)
+                    temp_text = QPlainTextEdit()
+                    temp_text.setReadOnly(True)
+                    temp_text.setFont(text_font)
+                    temp_text.setMaximumHeight(75)
+                    # temp_text.sizePolicy(QSizePolicy.Preferred)
+                    # print(sentence_index[key][result[key][i]])
+                    sentence_pos = sentence_index[key][result[key][i]]  # return [start_pos, end_pos]
+                    temp_file = open(key, mode='r')
+                    temp_str = temp_file.read()
+                    show_str = temp_str[sentence_pos[0]: sentence_pos[1]]
+                    temp_text.setPlainText(show_str)
+                    # print(show_str)
+                    # set high light
+                    word_pos = []
+                    # print("word_list:", word_list)
+                    value_str = ""
+                    rank_value = 0
+                    for word in word_list:
+                        # print(word)
+                        # get pos of target
+                        kmp_result = kmp_matching(show_str, word)
+
+                        if kmp_result != -1:
+                            # word exist in this result
+                            word_pos.extend(kmp_result)
+                            # calculating tf-idf
+                            tf_idf_value = tf_idf_cal(token_word_count(temp_str), len(self.path_list), key,
+                                                      self.inv_index[word])
+                            rank_value += (tf_idf_value * len(kmp_result))
+                            value_str += (word + '(' + ('%.3f' % tf_idf_value) + ') ')
+                        # print(word_pos)
+                    # print("outside for word")
+                    # print(value_str)
+                    tf_idf_label = QLabel()
+                    tf_idf_label.setText("TF-IDF: " + ('%.3f' % rank_value) + '\n' + value_str)
+                    # v_layout.addWidget(tf_idf_label)
+                    widgets_list.append(tf_idf_label)
+                    # implementing highlight
+                    document = temp_text.document()
+                    highlight_cursor = QTextCursor(document)
+                    cursor = QTextCursor(document)
+                    cursor.beginEditBlock()
+                    color_format = QTextCharFormat(highlight_cursor.charFormat())
+                    color_format.setBackground(Qt.yellow)
+                    for i_alter in range(0, len(word_pos)):
+                        pos = len(word_pos) - 1 - i_alter
+                        QTextCursor.setPosition(highlight_cursor, word_pos[pos])
+                        highlight_cursor.select(QTextCursor.WordUnderCursor)
+                        highlight_cursor.mergeCharFormat(color_format)
+                    cursor.endEditBlock()
+                    # print("done high light")
+                    temp_file.close()
+                    # v_layout.addWidget(temp_text)
+                    widgets_list.append(temp_text)
+                    widgets_tuple = tuple(widgets_list)
+                    # print(widgets_list)
+                    rank_dict[widgets_tuple] = rank_value
+                    i += 1
+            # print("sorting dict")
+            # sorted_list = sorted_dict(rank_dict, rank_dict.keys(), True)
+            aux = [(rank_dict[k], k) for k in rank_dict.keys()]
+            aux.sort(key=takeFirst, reverse=True)
+            sorted_list = [k for v, k in aux]
+            # print("done dict")
+            # print(len(sorted_list))
+            scroll_area = QScrollArea(search_result)
+            for key in sorted_list:
+                for i in key:
+                    v_layout.addWidget(i)
+            scroll_area.setWidget(saw_content)
+            scroll_area.setFixedSize(800, 500)
+            # search_result.sizePolicy(QSizePolicy.Preferred)
+            search_result.exec()
+        else:
+            self.target_not_find()
 
     # FUNC RELATED TO STATUS BAR
     def text_changed(self):
@@ -823,12 +895,18 @@ class Text_Editor(QMainWindow):
         self.word_count.setText(len(self.plainTextEdit.toPlainText()).__str__() + " Char")
         # self.rem_hl_pressed()
 
+    # TODO: bug in cursor_pos_changed, try to get row number
     def cursor_pos_changed(self):
         # Ln is actually block num
         print("In func cursor_pos_changed")
-        col = self.text_cursor.columnNumber()
-        row = self.text_cursor.blockNumber()
-        str_a = "Ln:" + str(row+1) + " \t "+"Col:" + str(col+1)
+        # col = self.text_cursor.columnNumber()
+        # row = self.text_cursor.blockNumber()
+        temp_cursor = self.plainTextEdit.textCursor()
+        col = temp_cursor.columnNumber()
+        row = temp_cursor.blockNumber()
+        print(self.plainTextEdit.textCursor().positionInBlock())
+        print(self.plainTextEdit.textCursor().position())
+        str_a = "Bl:" + str(row+1) + " \t "+"Col:" + str(col+1)
         self.courser_pos.setText(str_a)
 
     def change_font_size(self):
@@ -841,9 +919,9 @@ class Text_Editor(QMainWindow):
         #     pass    # do nothing if it's blank
         else:
             # if not digit, set to default size
-            self.font_size.setCurrentIndex(3)
+            self.font_size.setCurrentIndex(6)
             self.editor_font.setPointSize(20)
             self.plainTextEdit.setFont(self.editor_font)
 
-# TODO: TDF-ID
 # TODO: check if saved when closing window
+# TODO: fault when word doesn't exist in the current passage

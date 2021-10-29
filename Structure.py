@@ -1,5 +1,5 @@
 from queue import Queue
-
+import math
 
 class StackUnderflow(ValueError):   # 栈下溢(空栈访问)
     pass
@@ -270,13 +270,17 @@ def count_element(source, dict_a):
         else:
             dict_a[source[i]] = 1
 
-# ideas on realizing tfidf
-# [{word count for the first passage}, {word count for the second passage}]
-# master dict = first dict + second dict + ...
-# word_num = len(all passage)
-# !!!!!!!!unfinished!!!!!!
-def tfidf_count(source, word_count, tfidf, file_num, word_num):
-    pass
+
+def tf_idf_cal(passage_len, passage_count, file_path, index_word):
+    # passage_len: the length of the passage
+    # passage_count: total count of article
+    # index_word: value of the word in inverted_index
+    # {'path':[pos1, pos2]}
+    word_count = len(index_word[file_path])  # how many time have this word appeared in this passage
+    tf_value = word_count / passage_len
+    idf_value = abs(math.log2(passage_count / (len(index_word) + 1)))
+    print("tf:", tf_value, "idf:", idf_value)
+    return tf_value * idf_value
 
 # redundant function
 """def word_num(target):
@@ -292,13 +296,21 @@ def tfidf_count(source, word_count, tfidf, file_num, word_num):
 def sorted_dict(container, keys, reverse=False):
     """返回 keys 的列表,根据container中对应的值排序"""
     aux = [(container[k], k) for k in keys]
+    print(1)
     aux.sort()
+    print(2)
     if reverse:
+        print(3)
         aux.reverse()
+        print(4)
     return [k for v, k in aux]
 
 
-def nifix_to_postfix(str_pattern):
+def takeFirst(elem):
+    return elem[0]
+
+
+def infix_to_postfix(str_pattern):
     priority = {'|': 1, '&': 2, '(': 3}
     str_pattern = str_pattern.replace(' ', '')  # remove all the space in the string
     queue_a = Queue()
