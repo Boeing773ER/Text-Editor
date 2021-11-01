@@ -15,6 +15,20 @@ if __name__ == '__main__':
     text_editor.show()
     sys.exit(app.exec_())
 
+    """show_str = "This it's gravity apple"
+    word = "it"
+    kmp_result = kmp_matching(show_str, word)
+    for kmp_pos in kmp_result:
+        if kmp_pos == 0:
+            print(show_str[kmp_pos + len(word)], show_str[kmp_pos + len(word)].isalpha())
+        elif kmp_pos == len(show_str)-1:
+            print(show_str[kmp_pos - 1], show_str[kmp_pos - 1].isalpha())
+        else:
+            print(show_str[kmp_pos-1], show_str[kmp_pos-1].isalpha())
+            print(show_str[kmp_pos + len(word)], show_str[kmp_pos + len(word)].isalpha())"""
+    # and kmp_temp_result[j] + len(word) < len(show_str) \
+    # and kmp_result[j] - 1 >= 0\
+
     """word_pos = []
     word_list = ['of', 'that', 'a']
     for word in word_list:

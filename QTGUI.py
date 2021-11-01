@@ -558,9 +558,14 @@ class Text_Editor(QMainWindow):
                         stack_a.push(temp_index)
                         print(temp_index)
                     else:
+                        # fault here
+                        # In expression 'a|b', when b doesn't exist
+                        # result_exist is marked as False
+                        # thoughts on solving this: remove break; push an empty index into stack
                         print("dont exist")
-                        result_exist = False
-                        break
+                        stack_a.push({})
+                        # result_exist = False
+                        # break
                 result = None
                 if not stack_a.is_empty():
                     result = stack_a.top()
@@ -569,7 +574,11 @@ class Text_Editor(QMainWindow):
                         count += len(result[path])
                     if count == 0:
                         result_exist = False
+                else:
+                    # what to do if stack is empty
+                    pass
                 print('final:', result)
+                # TODO: fault in result_exist
                 self.search_result_present(result, word_list, sentence_index, result_exist)
 
     def statistic_pressed(self):
@@ -750,6 +759,7 @@ class Text_Editor(QMainWindow):
         # index1\2 are indexed by sentence No.
         print("inside func expression_cal")
         if sign == '|':
+            print("cal |")
             result = index1.copy()
             for key in index2.keys():
                 if key not in result:
@@ -774,7 +784,7 @@ class Text_Editor(QMainWindow):
 
     def search_result_present(self, result, word_list, sentence_index, exist):
         print("Inside func search_result_present")
-        # print(result)
+        print("result:", result)
         # sentence_index described the pos of each sentences
         # set the font for label and plain text editor
         label_font = QLabel().font()
@@ -782,28 +792,29 @@ class Text_Editor(QMainWindow):
         label_font.setBold(True)
         text_font = QLabel().font()
         text_font.setPointSize(15)
-        # print("font done")
+        print("font done")
         # Init QDialog
         search_result = QDialog()
         search_result.setWindowTitle("Inverted search result")
         result_count = 0
-        # print("init window")
+        print("init window")
         saw_content = QWidget()
         v_layout = QVBoxLayout(saw_content)
+        print("exist:", exist)
         if exist:
             for key in result.keys():
                 # get the number of result
                 result_count += len(result[key])
-            # print("result count")
+            print("result count")
             rank_dict = {}
             for key in result.keys():
                 # key is the path of the file
-                # print("key:", key)
+                print("key:", key)
                 i = 0
                 # thoughts on implementing TF-IDF ranking
                 # init & calculate the TDF-ID value of each result.
                 # store QWidgets in list
-                # use this list as the key, TDF-ID as value
+                # use this list as key, TDF-ID as value
                 # sort this dict. Output by TDF-ID value
 
                 while i < len(result[key]):
@@ -816,7 +827,7 @@ class Text_Editor(QMainWindow):
                     temp_text = QPlainTextEdit()
                     temp_text.setReadOnly(True)
                     temp_text.setFont(text_font)
-                    temp_text.setMaximumHeight(75)
+                    temp_text.setMaximumHeight(90)
                     # temp_text.sizePolicy(QSizePolicy.Preferred)
                     # print(sentence_index[key][result[key][i]])
                     sentence_pos = sentence_index[key][result[key][i]]  # return [start_pos, end_pos]
@@ -824,18 +835,44 @@ class Text_Editor(QMainWindow):
                     temp_str = temp_file.read()
                     show_str = temp_str[sentence_pos[0]: sentence_pos[1]]
                     temp_text.setPlainText(show_str)
-                    # print(show_str)
+                    print(show_str)
                     # set high light
                     word_pos = []
-                    # print("word_list:", word_list)
+                    print("word_list:", word_list)
                     value_str = ""
                     rank_value = 0
                     for word in word_list:
-                        # print(word)
+                        print("get pos for word:", word)
                         # get pos of target
-                        kmp_result = kmp_matching(show_str, word)
-
+                        kmp_temp_result = kmp_matching(show_str, word)
+                        print(kmp_temp_result)
+                        if kmp_temp_result == -1:
+                            continue
+                        kmp_result = []
+                        # THIS LINE IS FOR TESTING ONLY!!!!!
+                        # kmp_result = kmp_temp_result.copy()
+                        # kmp_result = kmp_temp_result
+                        # check if pos correct
+                        # TODO:correct this, when word is at the end of the sentence
+                        for j in range(len(kmp_temp_result)):
+                            if kmp_temp_result[j] == 0 and \
+                                    kmp_temp_result[j] + len(word) - 1 == len(show_str) - 1:
+                                # "word"
+                                kmp_result.append(kmp_temp_result[j])
+                            elif kmp_temp_result[j] == 0 and \
+                                    not show_str[kmp_temp_result[j] + len(word)].isalpha():
+                                # "word_"
+                                kmp_result.append(kmp_temp_result[j])
+                            elif kmp_temp_result[j] + len(word) - 1 == len(show_str) - 1 and \
+                                    not show_str[kmp_temp_result[j] - 1].isalpha():
+                                # "_word"
+                                kmp_result.append(kmp_temp_result[j])
+                            elif not show_str[kmp_temp_result[j] - 1].isalpha() and \
+                                    not show_str[kmp_temp_result[j] + len(word)].isalpha():
+                                kmp_result.append(kmp_temp_result[j])
+                        print("kmp_result:", kmp_result)
                         if kmp_result != -1:
+                            print("inside kmp_result")
                             # word exist in this result
                             word_pos.extend(kmp_result)
                             # calculating tf-idf
@@ -843,8 +880,8 @@ class Text_Editor(QMainWindow):
                                                       self.inv_index[word])
                             rank_value += (tf_idf_value * len(kmp_result))
                             value_str += (word + '(' + ('%.3f' % tf_idf_value) + ') ')
-                        # print(word_pos)
-                    # print("outside for word")
+                        print(word_pos)
+                    print("outside for word")
                     # print(value_str)
                     tf_idf_label = QLabel()
                     tf_idf_label.setText("TF-IDF: " + ('%.3f' % rank_value) + '\n' + value_str)
@@ -854,6 +891,7 @@ class Text_Editor(QMainWindow):
                     document = temp_text.document()
                     highlight_cursor = QTextCursor(document)
                     cursor = QTextCursor(document)
+                    print("before high light")
                     cursor.beginEditBlock()
                     color_format = QTextCharFormat(highlight_cursor.charFormat())
                     color_format.setBackground(Qt.yellow)
@@ -863,7 +901,7 @@ class Text_Editor(QMainWindow):
                         highlight_cursor.select(QTextCursor.WordUnderCursor)
                         highlight_cursor.mergeCharFormat(color_format)
                     cursor.endEditBlock()
-                    # print("done high light")
+                    print("done high light")
                     temp_file.close()
                     # v_layout.addWidget(temp_text)
                     widgets_list.append(temp_text)
@@ -924,4 +962,4 @@ class Text_Editor(QMainWindow):
             self.plainTextEdit.setFont(self.editor_font)
 
 # TODO: check if saved when closing window
-# TODO: fault when word doesn't exist in the current passage
+# TODO: highlight fault in search result
