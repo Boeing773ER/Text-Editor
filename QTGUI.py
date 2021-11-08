@@ -19,6 +19,7 @@ class Text_Editor(QMainWindow):
         self.binary_code = ""
         self.huff_a = HuffmanTree
         self.inv_index = dict()     # inverted_index
+        self.highlight = False  # high light or not
         window_icon = QIcon("./icon/text_editor.png")
         window_icon.addPixmap(QtGui.QPixmap("my.ico"), QIcon.Normal, QIcon.Off)
 
@@ -176,10 +177,12 @@ class Text_Editor(QMainWindow):
             # plain_text_edit not visible, creat new file
             self.openfile = []
             # self.setCentralWidget(self.plainTextEdit)
+            self.plainTextEdit.setPlainText("")     # clear content
             self.plainTextEdit.show()
             self.statusbar.showMessage("New File")
         elif self.plainTextEdit.toPlainText() != '':
             self.check_if_saved()
+            self.plainTextEdit.setPlainText("")     # clear content
             self.plainTextEdit.show()
 
     def open_pressed(self):
@@ -333,6 +336,7 @@ class Text_Editor(QMainWindow):
                     print(highlight_cursor.position())
                     highlight_cursor.mergeCharFormat(color_format)
                 cursor.endEditBlock()
+                self.highlight = True
             else:
                 self.target_not_find()
 
@@ -510,6 +514,7 @@ class Text_Editor(QMainWindow):
         print("inside func mul_search_pressed")
         # check if saved. Close it if saved
         self.check_if_saved()
+        self.plainTextEdit.setPlainText("")
         self.plainTextEdit.close()
         # update status bar
         self.word_count.setText("0 Char")
@@ -543,18 +548,18 @@ class Text_Editor(QMainWindow):
                         index1 = stack_a.pop()
                         index2 = stack_a.pop()
                         result = self.expression_calculation(index1, index2, temp_str)
+                        print("expression calculation finished")
                         stack_a.push(result)
                     elif temp_str in inv_sen_no_index:
                         print("in marker", temp_str)
-                        print()
                         # into stack
                         if temp_str[0] == '~':
                             temp_index = self.invert_select(temp_str, sentence_index, inv_sen_no_index)
                         else:
                             temp_index = inv_sen_no_index[temp_str]
-                            print("temp_index:", temp_index)
+                            print(temp_str, "temp_index:", temp_index)
                             word_list.append(temp_str)
-                        print("temp_index:", temp_index)
+                        print(temp_str, "temp_index:", temp_index)
                         stack_a.push(temp_index)
                         print(temp_index)
                     else:
@@ -585,6 +590,7 @@ class Text_Editor(QMainWindow):
         print("inside func statistic_pressed")
         # check if saved. Close it if saved.
         self.check_if_saved()
+        self.plainTextEdit.setPlainText("")
         self.plainTextEdit.close()
         # update status bar
         self.word_count.setText("0 Char")
@@ -758,6 +764,7 @@ class Text_Editor(QMainWindow):
     def expression_calculation(self, index1, index2, sign):
         # index1\2 are indexed by sentence No.
         print("inside func expression_cal")
+        print("sign:", sign)
         if sign == '|':
             print("cal |")
             result = index1.copy()
@@ -772,12 +779,20 @@ class Text_Editor(QMainWindow):
                     result[key] = temp_list
         elif sign == '&':
             result = index1.copy()
-            for key in index2.keys():
-                if key not in result:
-                    continue
+            # for key in index2.keys():
+            for key in result.keys():
+                # if key not in result:
+                if key not in index2:
+                    print("not in:", key, result[key])
+                    # result[key] = []
+                    del result[key]
+                    # continue
                 else:
-                    temp_list = list(set(result[key]).intersection(set(index2[key])))
+                    # temp_list = list(set(result[key]).intersection(set(index2[key])))
+                    temp_list = list(set(result[key]) & set(index2[key]))
+                    print(key, temp_list)
                     result[key] = temp_list
+            print("for finished")
         else:
             print("sign wrong")
         return result
@@ -828,7 +843,7 @@ class Text_Editor(QMainWindow):
                     temp_text.setReadOnly(True)
                     temp_text.setFont(text_font)
                     temp_text.setMaximumHeight(90)
-                    # temp_text.sizePolicy(QSizePolicy.Preferred)
+                    # temp_text.sizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
                     # print(sentence_index[key][result[key][i]])
                     sentence_pos = sentence_index[key][result[key][i]]  # return [start_pos, end_pos]
                     temp_file = open(key, mode='r')
@@ -844,7 +859,7 @@ class Text_Editor(QMainWindow):
                     for word in word_list:
                         print("get pos for word:", word)
                         # get pos of target
-                        kmp_temp_result = kmp_matching(show_str, word)
+                        kmp_temp_result = kmp_matching(show_str.lower(), word)
                         print(kmp_temp_result)
                         if kmp_temp_result == -1:
                             continue
@@ -931,7 +946,9 @@ class Text_Editor(QMainWindow):
     def text_changed(self):
         print("in func text_changed")
         self.word_count.setText(len(self.plainTextEdit.toPlainText()).__str__() + " Char")
-        # self.rem_hl_pressed()
+        """if self.highlight:
+            self.rem_hl_pressed()   # remove high light
+            self.highlight = False"""
 
     # TODO: bug in cursor_pos_changed, try to get row number
     def cursor_pos_changed(self):
@@ -962,4 +979,3 @@ class Text_Editor(QMainWindow):
             self.plainTextEdit.setFont(self.editor_font)
 
 # TODO: check if saved when closing window
-# TODO: highlight fault in search result
