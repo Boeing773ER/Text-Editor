@@ -151,9 +151,14 @@ class Text_Editor(QMainWindow):
         self.word_count.setMinimumWidth(100)
         self.word_count.setAlignment(Qt.AlignCenter)
         self.word_count.setText("0 Char")
+        self.file_name = QLabel()
+        self.file_name.setMinimumWidth(150)
+        self.file_name.setAlignment(Qt.AlignCenter)
+        self.file_name.setText("File:")
         self.statusbar.addPermanentWidget(self.sb_message)
         self.statusbar.addPermanentWidget(self.courser_pos)
         self.statusbar.addPermanentWidget(self.word_count)
+        self.statusbar.addPermanentWidget(self.file_name)
 
         # connect
         m_new.triggered.connect(self.new_pressed)
@@ -175,19 +180,21 @@ class Text_Editor(QMainWindow):
         print("inside func new_pressed")
         if self.plainTextEdit.isHidden():
             # plain_text_edit not visible, creat new file
-            self.openfile = []
-            # self.setCentralWidget(self.plainTextEdit)
-            self.plainTextEdit.setPlainText("")     # clear content
-            self.plainTextEdit.show()
-            self.statusbar.showMessage("New File")
+            pass
         elif self.plainTextEdit.toPlainText() != '':
-            self.check_if_saved()
-            self.plainTextEdit.setPlainText("")     # clear content
-            self.plainTextEdit.show()
+            print("plain text content:")
+            if self.check_if_saved() == "Cancel":
+                return
+        self.openfile = []  # new file, clear current file path
+        self.plainTextEdit.setPlainText("")  # clear content
+        self.plainTextEdit.show()
+        self.statusbar.showMessage("New File")
+        self.file_name.setText("File:New")
 
     def open_pressed(self):
         print("inside func open_pressed")
-        self.check_if_saved()
+        if self.check_if_saved() == "Cancel":
+            return
         openfile_name = QFileDialog.getOpenFileName(self, caption='Open File', filter='*.txt')
         if openfile_name != ('', ''):
             self.openfile = openfile_name[0]
@@ -202,6 +209,7 @@ class Text_Editor(QMainWindow):
             if self.plainTextEdit.isHidden():
                 self.plainTextEdit.show()
             self.plainTextEdit.setPlainText(str_a)
+            self.file_name.setText("File:" + get_file_name(openfile_name[0]))
         else:
             print("open fail")
             self.statusbar.showMessage("Open Failed")
@@ -240,6 +248,7 @@ class Text_Editor(QMainWindow):
             file_a.close()
             self.openfile = filename_save[0]
             self.statusbar.showMessage("Saved")
+            self.file_name.setText("File:" + get_file_name(filename_save[0]))
         else:
             print("Save fail")
             self.statusbar.showMessage("Save Failed")
@@ -261,7 +270,7 @@ class Text_Editor(QMainWindow):
         unsaved = QMessageBox.information(self, "Save?", "Current content unsaved. Do you wish to save it?",
                                           QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel, QMessageBox.Yes)
         if unsaved == QMessageBox.Yes:
-            print("save unsaved file")
+            print("Save unsaved File")
             self.save_pressed()
             print("file saved, closing plainTextEdit")
             self.plainTextEdit.clear()
@@ -278,6 +287,9 @@ class Text_Editor(QMainWindow):
             self.plainTextEdit.close()
             self.word_count.setText("0 Char")
             self.courser_pos.setText("Bl:0 \t Col:0")
+        elif unsaved == QMessageBox.Cancel:
+            return "Cancel"
+            # what to do if cancel?
 
     def content_empty(self):
         print("inside func content_empty")
@@ -287,18 +299,20 @@ class Text_Editor(QMainWindow):
         print("inside func check_if_saved")
         if self.plainTextEdit.isHidden():
             return
-        if not self.openfile:
+        if self.openfile == []:
             # No file has been opened/Not initialized
             if self.plainTextEdit.isVisible():
-                # Save New File
-                self.content_unsaved()
+                if self.plainTextEdit.toPlainText() != '':
+                    # if plaintext not empty
+                    # Save New File
+                    return self.content_unsaved()
         else:
             # openfile exist
             file_a = open(self.openfile, mode='r')
             str_f = file_a.read()
             str_e = self.plainTextEdit.toPlainText()
             if str_e != str_f:
-                self.content_unsaved()
+                return self.content_unsaved()
 
     # FUNCTION: FIND & REPLACE
     # TODO: bug in highlight
@@ -307,38 +321,66 @@ class Text_Editor(QMainWindow):
         if self.plainTextEdit.isHidden():
             self.content_empty()
         else:
-            print("in find")
-            find_input = QInputDialog()
-            find_input.setWindowTitle("Find")
-            find_input.setLabelText("Find:")
-            find_input.setInputMode(QInputDialog.TextInput)
-            if find_input.exec() == QInputDialog.Accepted:
-                str_pattern = find_input.textValue()
-            elif find_input.exec() == QInputDialog.Rejected:
-                find_input.destroy()
-                return
-            print("QInputDialog show")
-            str_target = self.plainTextEdit.toPlainText()
-            text_pos = kmp_matching(str_target, str_pattern)
-            if (text_pos != -1) and (text_pos is not None):
-                print("text_pos:", text_pos)
-                document = self.plainTextEdit.document()
-                highlight_cursor = QTextCursor(document)
-                cursor = QTextCursor(document)
-                cursor.beginEditBlock()
-                color_format = QTextCharFormat(highlight_cursor.charFormat())
-                color_format.setBackground(Qt.yellow)
-                for i in range(0, len(text_pos)):
-                    pos = len(text_pos) - 1 - i
-                    print(pos, text_pos[pos])
-                    QTextCursor.setPosition(highlight_cursor, text_pos[pos])
-                    highlight_cursor.select(QTextCursor.WordUnderCursor)
-                    print(highlight_cursor.position())
-                    highlight_cursor.mergeCharFormat(color_format)
-                cursor.endEditBlock()
-                self.highlight = True
-            else:
-                self.target_not_find()
+            dialog = QDialog()
+            layout = QGridLayout(dialog)
+            dialog.setWindowTitle("Find")
+            print("set title")
+
+            find_label = QLabel("Find: ")
+            label_font = find_label.font()
+            label_font.setPointSize(13)
+            find_label.setFont(label_font)
+            find_text = QLineEdit()
+
+            sensitive = QCheckBox()
+            sensitive.setText("Case Sensitive")
+
+            button_box = QDialogButtonBox()
+            find_button = QPushButton("Find")
+            cancel_button = QPushButton("Cancel")
+            button_box.addButton(find_button, QDialogButtonBox.AcceptRole)
+            button_box.addButton(cancel_button, QDialogButtonBox.RejectRole)
+            button_box.accepted.connect(lambda: self.find_process(dialog, find_text.text(), sensitive.isChecked()))
+            button_box.rejected.connect(lambda: self.replace_close(dialog))
+
+            print("init widget")
+            layout.addWidget(find_label, 0, 0)
+            layout.addWidget(find_text, 0, 1)
+            layout.addWidget(sensitive, 1, 0, 1, 2)
+            layout.addWidget(button_box, 2, 0, 1, 2)
+            print("done layout")
+            dialog.setLayout(layout)
+            dialog.exec()
+
+
+    def find_process(self, dialog, str_pattern, sensitive):
+        str_target = self.plainTextEdit.toPlainText()
+        if not sensitive:
+            str_pattern = str_pattern.lower()
+            str_target = str_target.lower()
+        text_pos = kmp_matching(str_target, str_pattern)
+        self.rem_hl_pressed()
+
+        if (text_pos != -1) and (text_pos is not None):
+            print("text_pos:", text_pos)
+            document = self.plainTextEdit.document()
+            highlight_cursor = QTextCursor(document)
+            cursor = QTextCursor(document)
+            cursor.beginEditBlock()
+            color_format = QTextCharFormat(highlight_cursor.charFormat())
+            color_format.setBackground(Qt.yellow)
+            for i in range(0, len(text_pos)):
+                pos = len(text_pos) - 1 - i
+                print(pos, text_pos[pos])
+                QTextCursor.setPosition(highlight_cursor, text_pos[pos])
+                highlight_cursor.select(QTextCursor.WordUnderCursor)
+                print(highlight_cursor.position())
+                highlight_cursor.mergeCharFormat(color_format)
+            cursor.endEditBlock()
+            self.highlight = True
+        else:
+            self.target_not_find()
+        dialog.destroy()
 
     def replace_pressed(self):
         print("inside func replace_pressed")
@@ -347,8 +389,8 @@ class Text_Editor(QMainWindow):
         else:
             dialog = QDialog()
             layout = QGridLayout(dialog)
-            replace_input = QDialog()
-            replace_input.setWindowTitle("Replace")
+            # replace_input = QDialog()
+            dialog.setWindowTitle("Replace")
             print("set title")
 
             old_label = QLabel("Old: ")
@@ -513,12 +555,14 @@ class Text_Editor(QMainWindow):
     def mul_search_pressed(self):
         print("inside func mul_search_pressed")
         # check if saved. Close it if saved
-        self.check_if_saved()
+        if self.check_if_saved() == "Cancel":
+            return
         self.plainTextEdit.setPlainText("")
         self.plainTextEdit.close()
         # update status bar
         self.word_count.setText("0 Char")
         self.courser_pos.setText("Bl:0 \t Col:0")
+        self.file_name.setText("File:")
 
         self.open_mul_file()
         result_exist = True     # take it as default that result exist
@@ -589,12 +633,14 @@ class Text_Editor(QMainWindow):
     def statistic_pressed(self):
         print("inside func statistic_pressed")
         # check if saved. Close it if saved.
-        self.check_if_saved()
+        if self.check_if_saved() == "Cancel":
+            return
         self.plainTextEdit.setPlainText("")
         self.plainTextEdit.close()
         # update status bar
         self.word_count.setText("0 Char")
         self.courser_pos.setText("Bl:0 \t Col:0")
+        self.file_name.setText("File:")
 
         dict_b = dict()
         self.open_mul_file()
@@ -656,7 +702,6 @@ class Text_Editor(QMainWindow):
             str_a = file_a.read()
             # Case insensitive
             str_a = str_a.lower()
-            # TODO: consider improving the structure of inverted index
             # list of sentence
             # sentence dict{'file_path':{file}, 'second file_path':{}}
             # file:{'1': [start pos, end pos], '2': [start pos, end pos]}
@@ -979,3 +1024,9 @@ class Text_Editor(QMainWindow):
             self.plainTextEdit.setFont(self.editor_font)
 
 # TODO: check if saved when closing window
+# TODO: different arrangement for & and |
+# TODO: consider move some of the func to Structure.py
+# DONE: add case sensitive in Find
+# DONE: fixed the bug in cancel closing file
+# DONE: add file name to status bar
+# DONE: reconstructed func new_pressed

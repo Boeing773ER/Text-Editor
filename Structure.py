@@ -380,3 +380,10 @@ def get_next_item(str_a, item):
                 return str_a[i:]
         item.append(str_a[:i+1])
         return ""
+
+
+def get_file_name(path):
+    for i in range(1, len(path)+1):
+        if path[-i] == '/':
+            break
+    return path[-i+1:]

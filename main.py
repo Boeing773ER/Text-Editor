@@ -14,6 +14,9 @@ if __name__ == '__main__':
     text_editor = Text_Editor()
     text_editor.show()
     sys.exit(app.exec_())
+    exit(0)
+
+    """print(get_file_name("path/a/b/sgas.txt"))"""
 
     """show_str = "This it's gravity apple"
     word = "it"
