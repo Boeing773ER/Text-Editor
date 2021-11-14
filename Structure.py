@@ -282,16 +282,6 @@ def tf_idf_cal(passage_len, passage_count, file_path, index_word):
     print("tf:", tf_value, "idf:", idf_value)
     return tf_value * idf_value
 
-# redundant function
-"""def word_num(target):
-    temp_dict = dict()
-    for i in range(len(target)):
-        if target[i] in temp_dict:
-            temp_dict[target[i]] += 1
-        else:
-            temp_dict[target[i]] = 1
-    return temp_dict"""
-
 
 def sorted_dict(container, keys, reverse=False):
     """返回 keys 的列表,根据container中对应的值排序"""
@@ -387,3 +377,115 @@ def get_file_name(path):
         if path[-i] == '/':
             break
     return path[-i+1:]
+
+
+def pos_to_sentence_no(pos_index, sentence_index):
+    print("inside func pos_to_sentence_no")
+    sen_no_index = pos_index.copy()
+    for key in pos_index.keys():
+        for path in pos_index[key].keys():
+            temp_list = pos_index[key][path]
+            sen_no_index[key][path] = []
+            for pos in temp_list:
+                for i in sentence_index[path].keys():
+                    if sentence_index[path][i][0] <= pos <= sentence_index[path][i][1]:
+                        if len(sen_no_index[key][path]) > 0:
+                            if sen_no_index[key][path][-1] != i:
+                                sen_no_index[key][path].append(i)
+                        else:
+                            sen_no_index[key][path].append(i)
+                        break
+    return sen_no_index
+
+
+def expression_calculation(index1, index2, sign):
+    # index1\2 are indexed by sentence No.
+    print("inside func expression_cal")
+    print("sign:", sign)
+    if sign == '|':
+        print("cal |")
+        result = index1.copy()
+        for key in index2.keys():
+            if key not in result:
+                result[key] = index2[key].copy()
+            else:
+                result[key].extend(index2[key])
+                temp_list = list(set(result[key]))
+                print(temp_list)
+                temp_list.sort()
+                result[key] = temp_list
+    elif sign == '&':
+        if index1 == {} or index2 == {}:
+            return {}
+        result = index1.copy()
+        # for key in index2.keys():
+        for key in result.keys():
+            # if key not in result:
+            if key not in index2:
+                print("not in:", key, result[key])
+                # result[key] = []
+                del result[key]
+                # continue
+            else:
+                # temp_list = list(set(result[key]).intersection(set(index2[key])))
+                temp_list = list(set(result[key]) & set(index2[key]))
+                print(key, temp_list)
+                result[key] = temp_list
+        print("for finished")
+    else:
+        print("sign wrong")
+    return result
+
+
+def locate_sentence(list_a):
+    print("inside func locate_sentence")
+    # list_a: [path, word pos]
+    file_a = open(list_a[0], mode='r')
+    str_a = file_a.read()
+    w_pos = list_a[1]
+    s_pos = 0   # start pos
+    e_pos = 0   # end pos
+    for i in range(w_pos, len(str_a)):
+        if str_a[i] == '.' or str_a[i] == '!' or str_a[i] == '?' or str_a[i] == '>' or str_a[i] == '<':
+            e_pos = i
+            break
+    s_pos = w_pos
+    while s_pos >= 0:
+        if str_a[s_pos] == '.' or str_a[s_pos] == '!' or str_a[s_pos] == '?' or str_a[s_pos] == '>' \
+                or str_a[s_pos] == '<':
+            # print(s_pos, str_a[s_pos])
+            break
+        s_pos -= 1
+    s_pos += 1
+    return [list_a[0], s_pos, e_pos]
+
+
+def invert_select(word, u_set, sentence):
+    print("inside func invert_select")
+    # processing '~'
+    # u_set: universal set contains all sentence num of each passage
+    # sentence: inverted_index with sentence no
+    word = word[1:]
+    if word in sentence:
+        original = sentence[word]
+        print('original:', original)
+        result = original.copy()
+        for path in u_set.keys():
+            count = len(u_set[path])
+            result[path] = []
+            for i in range(count):
+                exist = False
+                for j in original[path]:
+                    if j == i+1:
+                        exist = True
+                if not exist:
+                    result[path].append(i+1)
+        return result
+    else:
+        result = {}
+        for path in u_set.keys():
+            count = len(u_set[path])
+            result[path] = []
+            for i in range(count):
+                result[path].append(i+1)
+        return result
