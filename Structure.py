@@ -278,6 +278,7 @@ def tf_idf_cal(passage_len, passage_count, file_path, index_word):
     # {'path':[pos1, pos2]}
     word_count = len(index_word[file_path])  # how many time have this word appeared in this passage
     tf_value = word_count / passage_len
+    print("passage_count:", passage_count, "index_word:", len(index_word))
     idf_value = abs(math.log2(passage_count / (len(index_word) + 1)))
     print("tf:", tf_value, "idf:", idf_value)
     return tf_value * idf_value
@@ -421,10 +422,12 @@ def expression_calculation(index1, index2, sign):
         # for key in index2.keys():
         for key in result.keys():
             # if key not in result:
+            print(key)
             if key not in index2:
                 print("not in:", key, result[key])
                 # result[key] = []
-                del result[key]
+                result[key] = []
+                print("after del")
                 # continue
             else:
                 # temp_list = list(set(result[key]).intersection(set(index2[key])))
@@ -445,10 +448,14 @@ def locate_sentence(list_a):
     w_pos = list_a[1]
     s_pos = 0   # start pos
     e_pos = 0   # end pos
+    end_symbol = False  # didn't find end_symbol
     for i in range(w_pos, len(str_a)):
         if str_a[i] == '.' or str_a[i] == '!' or str_a[i] == '?' or str_a[i] == '>' or str_a[i] == '<':
             e_pos = i
+            end_symbol = True
             break
+    if not end_symbol:
+        e_pos = len(str_a)
     s_pos = w_pos
     while s_pos >= 0:
         if str_a[s_pos] == '.' or str_a[s_pos] == '!' or str_a[s_pos] == '?' or str_a[s_pos] == '>' \

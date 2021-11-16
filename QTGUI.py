@@ -382,7 +382,7 @@ class Text_Editor(QMainWindow):
             self.highlight = True
         else:
             self.target_not_find()
-        dialog.destroy()
+        # dialog.destroy()
 
     def replace_pressed(self):
         print("inside func replace_pressed")
@@ -436,6 +436,7 @@ class Text_Editor(QMainWindow):
     def replace_close(self, dialog):
         print("inside func replace_close")
         dialog.destroy()
+        self.rem_hl_pressed()
 
     def rem_hl_pressed(self):
         # remove high-light
@@ -449,6 +450,7 @@ class Text_Editor(QMainWindow):
         highlight_cursor.select(QTextCursor.Document)
         highlight_cursor.mergeCharFormat(color_format)
         cursor.endEditBlock()
+        self.highlight = False
 
     # FUNCTION: ENCODE & DECODE
     def encode_pressed(self):
@@ -630,7 +632,7 @@ class Text_Editor(QMainWindow):
                     pass
                 print('final:', result)
                 # DONE?: fault in result_exist
-                self.search_result_present(result, word_list, sentence_index, result_exist)
+                self.search_result_present(result, word_list, sentence_index, result_exist, str_pattern)
             else:
                 self.content_empty()
 
@@ -715,6 +717,7 @@ class Text_Editor(QMainWindow):
             sentence_temp_dict = {}
             while pos < len(str_a):
                 temp_list = locate_sentence([path_a, pos])
+                # print(temp_list)
                 sentence_temp_dict[sentence_no] = temp_list[1:]
                 # print(sentence_no, temp_list[1:])
                 pos = temp_list[2] + 1
@@ -750,7 +753,7 @@ class Text_Editor(QMainWindow):
         print("inverted_dict: ", inv_index)
         return inv_index, sentence_dict
 
-    def search_result_present(self, result, word_list, sentence_index, exist):
+    def search_result_present(self, result, word_list, sentence_index, exist, search_str):
         print("Inside func search_result_present")
         print("result:", result)
         # sentence_index described the pos of each sentences
@@ -766,8 +769,20 @@ class Text_Editor(QMainWindow):
         search_result.setWindowTitle("Inverted search result")
         result_count = 0
         print("init window")
+        # Init Layout
         saw_content = QWidget()
         v_layout = QVBoxLayout(saw_content)
+        # result string
+        search_string = QLabel()
+        search_string.setText("Result of: " + search_str)
+        print(1)
+        temp_font = search_string.font()
+        temp_font.setBold(True)
+        temp_font.setPointSize(15)
+        print(2)
+        search_string.setFont(temp_font)
+        print(3)
+        v_layout.addWidget(search_string)
         print("exist:", exist)
         if exist:
             for key in result.keys():
@@ -899,9 +914,7 @@ class Text_Editor(QMainWindow):
     def text_changed(self):
         print("in func text_changed")
         self.word_count.setText(len(self.plainTextEdit.toPlainText()).__str__() + " Char")
-        """if self.highlight:
-            self.rem_hl_pressed()   # remove high light
-            self.highlight = False"""
+        self.statusbar.clearMessage()
 
     def cursor_pos_changed(self):
         # Ln is actually block num
@@ -915,6 +928,9 @@ class Text_Editor(QMainWindow):
         print(self.plainTextEdit.textCursor().position())
         str_a = "Bl:" + str(row+1) + " \t "+"Col:" + str(col+1)
         self.courser_pos.setText(str_a)
+        # remove highlight
+        # if self.highlight:
+            # self.rem_hl_pressed()   # remove high light
 
     def change_font_size(self):
         print("In func change_font_size")
